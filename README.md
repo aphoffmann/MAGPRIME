@@ -23,3 +23,43 @@ MAGPRIME requires Python 3.6 or later. You can install the library using `pip`:
 
 ```bash
 pip install magprime
+
+```
+Alternatively, you can clone the repository and install the library manually:
+
+```
+git clone https://github.com/your_username/MAGPRIME.git
+cd MAGPRIME
+python setup.py install
+```
+
+Usage
+To use MAGPRIME, simply import the desired noise removal algorithm and apply it to your magnetic field data. For example, to use wavelet-based denoising
+
+
+```
+from magprime.noise_removal_algorithms import wavelet_denoising
+
+# Load your data (assumes data is a NumPy array with time series magnetic field data)
+denoised_data = wavelet_denoising(data)
+```
+For more detailed usage instructions and examples, please refer to the examples folder.
+
+Contributing
+We welcome contributions to improve and expand the MAGPRIME library. If you would like to contribute, please follow these steps:
+
+1. Fork the repository on GitHub.
+2. Clone your forked repository to your local machine.
+3. Create a new branch with a descriptive name for your feature or bugfix (git checkout -b my-feature-branch).
+4. Make your changes, following the existing coding style and including comments and docstrings for any new functions or classes.
+5. Test your changes to ensure that they work correctly and do not introduce new issues.
+6. Commit your changes to your branch, using descriptive commit messages.
+7. Push your changes to your forked repository on GitHub.
+8. Open a pull request to the main repository, describing your changes and the motivation behind them.
+Please ensure that your code follows the existing style guidelines and that you include unit tests for any new functionality, if applicable. Also, update the documentation as needed.
+
+
+Citation
+If you use MAGPRIME in your research, please consider citing our paper:
+
+[Your Name], [Co-author Names]. (Year). Advancing Space Science: A Critical Review of Magnetometer Noise Removal Techniques and the Development of an Open-Source Test-Bed. Journal Name, Volume(Issue), Pages. DOI: [DOI Number]
