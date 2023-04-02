@@ -33,7 +33,7 @@ cd MAGPRIME
 python setup.py install
 ```
 
-Usage
+## Usage
 To use MAGPRIME, simply import the desired noise removal algorithm and apply it to your magnetic field data. For example, to use wavelet-based denoising
 
 
@@ -45,7 +45,7 @@ denoised_data = wavelet_denoising(data)
 ```
 For more detailed usage instructions and examples, please refer to the examples folder.
 
-Contributing
+## Contributing
 We welcome contributions to improve and expand the MAGPRIME library. If you would like to contribute, please follow these steps:
 
 1. Fork the repository on GitHub.
@@ -59,7 +59,7 @@ We welcome contributions to improve and expand the MAGPRIME library. If you woul
 Please ensure that your code follows the existing style guidelines and that you include unit tests for any new functionality, if applicable. Also, update the documentation as needed.
 
 
-Citation
+## Citation
 If you use MAGPRIME in your research, please consider citing our paper:
 
 [Your Name], [Co-author Names]. (Year). Advancing Space Science: A Critical Review of Magnetometer Noise Removal Techniques and the Development of an Open-Source Test-Bed. Journal Name, Volume(Issue), Pages. DOI: [DOI Number]
