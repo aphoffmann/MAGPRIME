@@ -38,10 +38,19 @@ To use MAGPRIME, simply import the desired noise removal algorithm and apply it 
 
 
 ```
-from magprime.noise_removal_algorithms import wavelet_denoising
+from magprime.algorithms import WAICUP
 
-# Load your data (assumes data is a NumPy array with time series magnetic field data)
-denoised_data = wavelet_denoising(data)
+# Load the data (assumes 'b' is an MxN NumPy array with M magnetometers and N data points)
+# b = ...
+
+# Set any additional algorithm-specific arguments
+# kwargs = ...
+
+# Clean the signals using the WAIC-UP algorithm
+cleaned_signals = WAICUP.clean(b, **kwargs)
+
+# Perform further analysis or visualization with the cleaned_signals
+# ...
 ```
 For more detailed usage instructions and examples, please refer to the examples folder.
 
