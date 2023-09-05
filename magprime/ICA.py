@@ -70,11 +70,6 @@ def cleanTriAxis(sig, uf=400):
     S_ = ica.fit_transform(X)  
     S_ = S_.T
     
-    "Plot ICs"
-    #fig, ax = plt.subplots(sig.shape[0],1)
-    #for i in range(sig.shape[0]):
-    #    ax[i].plot(S_[i])
-        
     
     "Find Natural IC"
     step = ica.mixing_.shape[0]//3

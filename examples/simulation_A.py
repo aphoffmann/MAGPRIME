@@ -13,8 +13,8 @@ import warnings
 warnings.filterwarnings("ignore")
 
 "Noise Reduction Algorithms"
-from algorithms import REAM
-from algorithms import MVA
+from magprime import REAM
+from magprime import PiCoG
 
 def run():
     df=pd.read_csv('SPACE_DATA\mstac2e2esupp1.csv', sep=',',header=0)
