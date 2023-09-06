@@ -19,7 +19,28 @@ from pymssa import MSSA
 import warnings
 warnings.filterwarnings("ignore")
 
-def clean(sig, detrend = True, window_size = 400, uf = 200, alpha = 0.05):
+"Parameters"
+window_size = 400 # Window size for MSSA
+uf = 400 # Uniform Filter Size for detrending
+alpha = 0.05 # Correlation threshold for identifying interference
+detrend = True # Boolean for whether to detrend the signal
+
+def clean(B, triaxis = True):
+    """
+    B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
+    triaxis: boolean for whether to use triaxial or uniaxial ICA
+    """
+    if(triaxis):
+        result = np.zeros((3, B.shape[-1]))
+        for axis in range(3):
+            result[axis] = cleanMSSA(B[:,axis,:])
+        return(result)
+    else:
+        result = cleanMSSA(B)
+        return(result)
+    
+
+def cleanMSSA(sig):
     "Detrend"
     if(detrend): 
         trend = uniform_filter1d(sig, size=uf)

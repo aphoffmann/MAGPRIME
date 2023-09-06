@@ -16,23 +16,33 @@ from scipy.ndimage import uniform_filter1d
 import warnings
 warnings.filterwarnings("ignore")
 
-def clean(sig, method = None, uf = 400):
-    if(method == "TriAxis"):
-        recovered_signal = cleanTriAxis(sig,uf)
+"Parameters"
+fs = 1 # Sampling Frequency
+uf = 400 # Uniform Filter Size for detrending
+detrend = True
+
+def clean(B, triaxis = True):
+    """
+    B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
+    triaxis: boolean for whether to use triaxial or uniaxial ICA
+    """
+
+    if(triaxis):
+        recovered_signal = cleanTriAxis(B)
     else:
-        recovered_signal = cleanAxis(sig)
+        recovered_signal = cleanAxis(B)
     return(recovered_signal)
         
     
 
-def cleanAxis(sig, fs=1):
-    "TODO: Center and Whiten"
+def cleanAxis(sig):
     n_components = sig.shape[0]
     ica = FastICA(n_components=n_components, whiten=False, max_iter=20000, tol = 1e-8)
     
     "Remove Trend"
-    #filtered = uniform_filter1d(sig, size=3600)
-    #sig -= filtered
+    if(detrend): 
+        trend = uniform_filter1d(sig, size=uf)
+        sig -= trend
     
     "Apply ICA"
     X = sig.T # (n_samples, n_features)
@@ -51,11 +61,14 @@ def cleanAxis(sig, fs=1):
     "Reapply Trend"
     recovered_signal = S_[np.argmin(r)] #+ np.mean(filtered, axis = 0) 
     
+    if(detrend):
+        recovered_signal += np.mean(trend, axis = 0)
+
     return(recovered_signal)
 
 
 
-def cleanTriAxis(sig, uf=400):
+def cleanTriAxis(sig):
     "TODO: Center and Whiten"
     n_components = sig.shape[0]
     ica = FastICA(n_components=n_components, whiten="unit-variance", max_iter=1000)

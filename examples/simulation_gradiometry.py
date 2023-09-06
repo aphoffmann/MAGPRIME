@@ -21,14 +21,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 "Noise Reduction Algorithms"
-from algorithms import ICA
-from algorithms import MSSA
-from algorithms import SHEINKER
-from algorithms import NESS
-from algorithms import WAICUP
-from algorithms import UBSS
-from algorithms import REAM
-from algorithms import PiCoG
+from magprime import *
 
 def createMixingMatrix(axis = 0):
     "Create Sensors"

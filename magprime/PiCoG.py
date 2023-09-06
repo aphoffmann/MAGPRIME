@@ -9,34 +9,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 from scipy.spatial.transform import Rotation as R
 
-def rotate_data(data, vector):
-    """
-    Rotate the data such that the X axis aligns with the provided vector.
-    Input:
-        data: array of tri-axial data with shape (axes, samples)
-        vector: array specifying the vector direction with shape (3,)
-    Output:
-        rotated_data: rotated version of the input data
-    """
-
-    # Normalize the input vector
-    vector = vector / np.linalg.norm(vector)
-
-    # Compute the axis of rotation
-    axis = np.cross([1, 0, 0], vector)
-
-    # Compute the angle of rotation
-    angle = np.arccos(np.dot([1, 0, 0], vector))
-
-    # Define the rotation
-    rotation = R.from_rotvec(angle * axis)
-
-    # Apply the rotation to the data
-    rotated_data = rotation.apply(data.T).T
-
-    return rotated_data, rotation
-
-def clean(B0):
+def clean(B0, triaxis = True):
     """
     Perform Principal Component gradiometry PCA on the magnetic field data
     Input:
@@ -44,6 +17,9 @@ def clean(B0):
     Output:
         result: reconstructed ambient field without the spacecraft-generated fields (axes, n_samples)
     """
+
+    if(triaxis == False):
+        raise("'triaxis' is set to False. PiCoG only works for triaxial data")
 
     # Initialize an array to store the corrected magnetic field data
     B_corrected = np.zeros(B0.shape[1:])
@@ -78,3 +54,31 @@ def clean(B0):
 
     # Return the corrected magnetic field data
     return B_corrected
+
+
+def rotate_data(data, vector):
+    """
+    Rotate the data such that the X axis aligns with the provided vector.
+    Input:
+        data: array of tri-axial data with shape (axes, samples)
+        vector: array specifying the vector direction with shape (3,)
+    Output:
+        rotated_data: rotated version of the input data
+    """
+
+    # Normalize the input vector
+    vector = vector / np.linalg.norm(vector)
+
+    # Compute the axis of rotation
+    axis = np.cross([1, 0, 0], vector)
+
+    # Compute the angle of rotation
+    angle = np.arccos(np.dot([1, 0, 0], vector))
+
+    # Define the rotation
+    rotation = R.from_rotvec(angle * axis)
+
+    # Apply the rotation to the data
+    rotated_data = rotation.apply(data.T).T
+
+    return rotated_data, rotation

@@ -3,3 +3,4 @@ magprime.egg-info/top_level.txt
 magprime.egg-info/dependency_links.txt
 magprime.egg-info/PKG-INFO
 magprime.egg-info/SOURCES.txt
+*.pyc

@@ -11,12 +11,34 @@ import itertools
 from scipy.signal import savgol_filter
 scales = None
 
-def clean(sensors, fs = 1, dj = 1/12, N = 400, denoise = True):
-    dt = 1/fs; dj = 1/12
+"Parameters"
+fs = 1
+dj = 1/12
+uf = 400
+denoise = True
+
+def clean(B, triaxis = True):
+    """
+    B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
+    triaxis: boolean for whether to use triaxial or uniaxial ICA
+    """
+
+    if(triaxis):
+        result = np.zeros((3, B.shape[-1]))
+        for axis in range(3):
+            result[axis] = cleanWAICUP(B[:,axis,:])
+        return(result)
+    else:
+        "B: (n_sensors, n_samples)"
+        result = cleanWAICUP(B)
+        return(result)
     
+def cleanWAICUP(sensors):
+    dt = 1/fs    
+
     "Detrend"
-    if(N is not None):
-        trend = uniform_filter1d(sensors, size=N)
+    if(uf is not None):
+        trend = uniform_filter1d(sensors, size=uf)
         sensors -= trend
     
     if(sensors.shape[0] == 2): amb_mf = dual(sensors, dt, dj)
@@ -27,7 +49,7 @@ def clean(sensors, fs = 1, dj = 1/12, N = 400, denoise = True):
         amb_mf = savgol_filter(amb_mf, 10, 2, mode='nearest')
     
     "Retrend"
-    if(N is not None):
+    if(uf is not None):
         amb_mf += np.mean(trend, axis = 0)
 
 
