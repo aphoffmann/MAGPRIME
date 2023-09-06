@@ -66,16 +66,20 @@ def cleanAxis(sig):
 
     return(recovered_signal)
 
+def cleanTriAxis(B):
+    """
+    B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
+    """
+    n_sensors, n_axes, n_samples = B.shape
+    B_transposed = B.transpose(1, 0, 2) # (axes, n_sensors, n_samples) 
+    sig = B_transposed.reshape(n_sensors * n_axes, n_samples)
 
-
-def cleanTriAxis(sig):
-    "TODO: Center and Whiten"
     n_components = sig.shape[0]
     ica = FastICA(n_components=n_components, whiten="unit-variance", max_iter=1000)
     
     "Remove Trend"
-    filtered = uniform_filter1d(sig, size=uf)
-    sig -= filtered
+    trend = uniform_filter1d(sig, size=uf)
+    sig -= trend
 
     
     "Apply ICA"
@@ -84,16 +88,16 @@ def cleanTriAxis(sig):
     S_ = S_.T
     
     
-    "Find Natural IC"
+    "Find Natural IC through lowest correlation with the difference"
     step = ica.mixing_.shape[0]//3
     diffs = np.abs([ica.mixing_[i] - ica.mixing_[i-1] for i in range(step-1,ica.mixing_.shape[0],step)])
     args = np.argmin(diffs, axis = 1)
     gain = np.abs([(ica.mixing_[i] + ica.mixing_[i-1])/2 for i in range(step-1,ica.mixing_.shape[0],step)])
     
-    "Restore Ambient ICs"
+    "Select IC's with lowest correlation with the difference and reapply trend"
     recovered_signal = np.zeros((3, sig.shape[-1]))
-    recovered_signal[0] = S_[args[0]]*gain[0][args[0]] + np.mean(filtered[:step], axis = 0)
-    recovered_signal[1] = S_[args[1]]*gain[1][args[1]] + np.mean(filtered[step:2*step], axis = 0) 
-    recovered_signal[2] = S_[args[1]]*gain[2][args[2]] + np.mean(filtered[2*step:3*step], axis = 0) 
+    recovered_signal[0] = S_[args[0]]*gain[0][args[0]] + np.mean(trend[:step], axis = 0)
+    recovered_signal[1] = S_[args[1]]*gain[1][args[1]] + np.mean(trend[step:2*step], axis = 0) 
+    recovered_signal[2] = S_[args[2]]*gain[2][args[2]] + np.mean(trend[2*step:3*step], axis = 0) 
         
     return(recovered_signal)
