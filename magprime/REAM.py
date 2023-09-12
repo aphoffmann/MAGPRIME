@@ -8,7 +8,7 @@ p = 98 # percentile threshold for identifying spectral peaks (0-100)
 
 
 
-def clean(B):
+def clean(B, triaxial = True):
     """
     Perform magnetic gradiometry using frequency-domain filtering
     Input:
@@ -20,10 +20,15 @@ def clean(B):
     if delta_B is None:
         raise ValueError("REAM.delta_B must be set before calling clean()")
 
-    result = np.zeros(B.shape[1:])
-    for axis in range(3):
-        result[axis] = gradiometry_filter(B[0,axis,:], B[1,axis,:])
-    return(result)
+    if(triaxial):
+        result = np.zeros(B.shape[1:])
+        for axis in range(3):
+            result[axis] = gradiometry_filter(B[0,axis,:], B[1,axis,:])
+        return(result)
+
+    else:
+        result = gradiometry_filter(B[0], B[1])
+        return(result)
 
 def gradiometry_filter(B1, B2):
     """

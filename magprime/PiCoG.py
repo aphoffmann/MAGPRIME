@@ -9,7 +9,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 from scipy.spatial.transform import Rotation as R
 
-def clean(B0, triaxis = True):
+def clean(B0, triaxial = True):
     """
     Perform Principal Component gradiometry PCA on the magnetic field data
     Input:
@@ -18,12 +18,16 @@ def clean(B0, triaxis = True):
         result: reconstructed ambient field without the spacecraft-generated fields (axes, n_samples)
     """
 
-    if(triaxis == False):
-        raise("'triaxis' is set to False. PiCoG only works for triaxial data")
+    if(triaxial == False):
+        raise("'triaxial' is set to False. PiCoG only works for triaxial data")
 
     # Initialize an array to store the corrected magnetic field data
     B_corrected = np.zeros(B0.shape[1:])
     n_sensors = B0.shape[0]
+
+    # Detrend B0 with a uniform filter and save the trend
+    B0 = B0 - np.mean(B0, axis=2, keepdims=True)
+    B0_trend = uniform_filter1d(B0, size=400, axis=2)
 
     # Loop over the sensor pairs
     for i in range(n_sensors):
@@ -38,17 +42,17 @@ def clean(B0, triaxis = True):
             # Get the maximum variance direction of Delta_B0
             max_var_dir = pca.components_[0]
 
-            # Project Delta_B0 onto the maximum variance direction
+            # Project Delta_B0 and B0[i] onto the maximum variance direction
             Delta_B0_x, rotation = rotate_data(Delta_B0, max_var_dir)
-
-            # Project B0[i] onto the maximum variance direction
             B0_i_x, _ =  rotate_data(B0[i], max_var_dir)
 
             # Estimate the scaling factor alpha using the variance ratio
-            alpha = np.sqrt(np.var(B0_i_x[0]) / np.var(Delta_B0_x[0]))
+            alpha = np.std(B0_i_x[0]) / np.std(Delta_B0_x[0])
 
             # Correct the maximum variance component of B0[i] using alpha and Delta_B0_x
-            B_corrected[0] = B0[i][0] - alpha * Delta_B0_x[0]
+            B_corrected[0] = B0_i_x[i][0] - alpha * Delta_B0_x[0]
+            B_corrected[1] = B0_i_x[i][1]
+            B_corrected[2] = B0_i_x[i][2]
 
             B_corrected = rotation.inv().apply(B_corrected.T).T
 

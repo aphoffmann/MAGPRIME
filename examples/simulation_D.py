@@ -16,6 +16,7 @@ warnings.filterwarnings("ignore")
 from magprime import ICA
 from magprime import WAICUP
 from magprime import MSSA
+from magprime import UBSS
 
 def createMixingMatrix(axis = 0):
     "Create Sensors"
@@ -114,19 +115,12 @@ def run():
     ICA.fs = 50
     ICA.uf = 400
     ICA.detrend = True
-    B_ica = ICA.clean(np.copy(B))
-    plt.plot(B_ica.T)
-    plt.show()
-
+    #B_ica = ICA.clean(np.copy(B))
+    
     "UBSS"
-
-
-
-
-
-
-
-    "REAM"
+    UBSS.fs = 50
+    UBSS.sigma = 25
+    B_ubss = UBSS.clean(np.copy(B))
 
     "Plot Results"
 

@@ -21,13 +21,13 @@ fs = 1 # Sampling Frequency
 uf = 400 # Uniform Filter Size for detrending
 detrend = True
 
-def clean(B, triaxis = True):
+def clean(B, triaxial = True):
     """
     B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
-    triaxis: boolean for whether to use triaxial or uniaxial ICA
+    triaxial: boolean for whether to use triaxial or uniaxial ICA
     """
 
-    if(triaxis):
+    if(triaxial):
         recovered_signal = cleanTriAxis(B)
     else:
         recovered_signal = cleanAxis(B)
@@ -86,7 +86,6 @@ def cleanTriAxis(B):
     X = sig.T # (n_samples, n_features)
     S_ = ica.fit_transform(X)  
     S_ = S_.T
-    
     
     "Find Natural IC through lowest correlation with the difference"
     step = ica.mixing_.shape[0]//3

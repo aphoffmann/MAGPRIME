@@ -25,12 +25,12 @@ uf = 400 # Uniform Filter Size for detrending
 alpha = 0.05 # Correlation threshold for identifying interference
 detrend = True # Boolean for whether to detrend the signal
 
-def clean(B, triaxis = True):
+def clean(B, triaxial = True):
     """
     B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
-    triaxis: boolean for whether to use triaxial or uniaxial ICA
+    triaxial: boolean for whether to use triaxial or uniaxial ICA
     """
-    if(triaxis):
+    if(triaxial):
         result = np.zeros((3, B.shape[-1]))
         for axis in range(3):
             result[axis] = cleanMSSA(B[:,axis,:])

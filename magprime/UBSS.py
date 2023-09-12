@@ -26,12 +26,35 @@ hdbscan = hdbscan.HDBSCAN(min_samples = 4)
 "NSGT Transform"
 Q = 10
 lowf = 0.1
-sampleRate = 1
+fs = 1
 duration = 1
 
 "Compressive Sensing"
 weight = 1
-boom = None
+boom = None # Index of boom magnetometer in (n_sensors, axes, n_samples) array
+
+def clean(B, triaxial = True):
+    """
+    Perform magnetic noise removal through Underdetermined Blind Source Separation
+    Input:
+        B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
+    Output:
+        result: reconstructed ambient field without the spacecraft-generated fields (axes, n_samples)
+    """
+
+    if(triaxial):
+        result = np.zeros((3, B.shape[-1]))
+        for axis in range(3):
+            setMagnetometers(B.shape[0])
+            clusterNSGT(B[:,axis,:])
+            result[axis] = demixNSGT(B[:,axis,:])[0]
+        return(result)
+    else:
+        setMagnetometers(B.shape[0])
+        clusterNSGT(B)
+        result = demixNSGT(B)[0]
+    return(result)
+
 
 def processData(A, b, n_clusters, data):
     "Define cvxpy parameters and variables for optimization problem" 
@@ -85,10 +108,6 @@ def processData(A, b, n_clusters, data):
 
             
     return x.value
-
-
-       
-
      
 def weightedReconstruction(sig):
     "Get the number of clusters and initialize an empty result array"
@@ -115,8 +134,6 @@ def weightedReconstruction(sig):
     r=np.array(result).T
     return(r)
    
-   
-    
 def setMagnetometers(n=3):
     "Set the number of magnetometers"
     global magnetometers; global clusterCentroids
@@ -134,8 +151,7 @@ def clusterData(B):
     centroids = [np.mean(C[i], axis=0) for i in range(n_clusters_)]
     centroids = np.round(np.matrix(centroids),3)
     return(centroids, clusters)       
-   
-    
+      
 def filterMagnitude(B):
     """ Filters out low energy points"""
     B = np.array(B)
@@ -161,7 +177,6 @@ def filterSSP(B):
 def clusterNSGT(sig):
     "Create instance of NSGT and set NSGT parameters"
     length = sig.shape[-1]
-    fs = sampleRate
     bins = Q
     fmax = fs/2
     nsgt = CQ_NSGT(lowf, fmax, bins, fs, length, multichannel=True)
@@ -207,16 +222,12 @@ def clusterNSGT(sig):
      
     "Update Global Mixing Matrix"
     updateCentroids(mixingMatrix.T)
-    print(np.round(np.array([np.abs(item) for item in clusterCentroids.values()]),3))
-    #print(np.round(np.array([np.angle(item) for item in clusterCentroids.values()]),3))
     return
-
 
 """Define a function to demix a signal using non-stationary Gabor transform (NSGT)"""
 def demixNSGT(sig, weighted = True):
     "Create instance of NSGT and set NSGT parameters"
     length = sig.shape[-1]
-    fs = sampleRate
     bins = Q
     fmax = fs/2
     nsgt = CQ_NSGT(lowf, fmax, bins, fs, length, multichannel=True)
