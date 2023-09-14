@@ -27,6 +27,7 @@ DEPENDENCY_LINKS = [
     
 ]
 
+
 setup(
     name='magprime',
     version='0.1',
