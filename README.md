@@ -1,6 +1,6 @@
-# MAGPRIME: Magnetometer Noise Removal Library for Space-Based Applications
+# MAGPRIME: MAGnetic signal PRocessing, Interference Mitigation, and Enhancement
 
-MAGPRIME (MAGnetic PRocessing, Interference Mitigation, and Enhancement) is an open-source Python library that provides a collection of noise removal algorithms tailored for space-based magnetic field measurements. The library aims to facilitate the development and testing of new noise removal techniques, as well as provide a comprehensive suite of existing algorithms for researchers and engineers working with magnetometer data.
+MAGPRIME (MAGnetic signal PRocessing, Interference Mitigation, and Enhancement) is an open-source Python library that provides a collection of noise removal algorithms tailored for space-based magnetic field measurements. The library aims to facilitate the development and testing of new noise removal techniques, as well as provide a comprehensive suite of existing algorithms for researchers and engineers working with magnetometer data.
 
 ## Features
 
@@ -9,20 +9,20 @@ MAGPRIME (MAGnetic PRocessing, Interference Mitigation, and Enhancement) is an o
   - Underdetermined Blind Source Separation (Hoffmann and Moldwin, 2022)
   - Adaptive Interference Cancellation for a pair of magnetometers (Sheinker and Moldwin, 2016)
   - Multivariate Singular Spectrum Analysis (Finley et al., 2023)
-  - Principal component analysis (PCA)
-  - Independent component analysis (Imajo et al., 2021)
-  - Gradiometry Algorithms
-    - Ness
-    - Ream
+  - Principal Component Gradiometry (Constantinescu et al., 2020)
+  - Independent Component Analysis (Imajo et al., 2021)
+  - Traditional Gradiometry (Ness et al., 1971)
+  - Frequency-based Gradiometry (Ream et al., 2021)
 - Utility functions for data preprocessing and evaluation metrics
 - Example scripts and datasets for demonstrating the usage of the library
+- Benchmarks to compare interference removal performance
 
 ## Installation
 
-MAGPRIME requires Python 3.6 or later. You can install the library using `pip`:
+MAGPRIME requires Python 3.9 or later. You can install the library using `pip`:
 
 ```bash
-pip install magprime
+pip install magprime git+https://github.com/aphoffmann/MAGPRIME.git
 
 ```
 Alternatively, you can clone the repository and install the library manually:
@@ -32,22 +32,29 @@ git clone https://github.com/your_username/MAGPRIME.git
 cd MAGPRIME
 python setup.py install
 ```
+or 
+```
+git clone https://github.com/your_username/MAGPRIME.git
+cd MAGPRIME
+pip install .
+```
 
 ## Usage
 To use MAGPRIME, simply import the desired noise removal algorithm and apply it to your magnetic field data. For example, to use wavelet-based denoising
 
 
 ```
-from magprime.algorithms import WAICUP
+from magprime import ICA, MSSA, NESS, PiCoG, SHEINKER, REAM, UBSS, WAICUP
 
-# Load the data (assumes 'b' is an MxN NumPy array with M magnetometers and N data points)
-# b = ...
+# Load the magnetometer data in the shape of b: (n_sensors, n_axes, n_samples)
+b = load_data_function()
 
 # Set any additional algorithm-specific arguments
-# kwargs = ...
+UBSS. sigma = 10 # nT
+UBSS.fs = 50 # Hz
 
 # Clean the signals using the WAIC-UP algorithm
-cleaned_signals = WAICUP.clean(b, **kwargs)
+cleaned_signals = UBSS.clean(b) # returns (n_axes, n_samples)
 
 # Perform further analysis or visualization with the cleaned_signals
 # ...
