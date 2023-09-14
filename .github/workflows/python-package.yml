@@ -27,8 +27,7 @@ jobs:
     - name: Install dependencies from requirements.txt
       run: |
         python -m pip install --upgrade pip
-        python -m pip install numpy
-        pip install --no-build-isolation -r requirements.txt
+        pip install -r requirements.txt
     - name: Install additional dependencies
       run: |
         python -m pip install flake8 pytest
