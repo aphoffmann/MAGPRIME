@@ -13,11 +13,11 @@ REQUIREMENTS = [
     'cvxpy',
     'scikit-learn',
     'tqdm',
+    'nsgt',
     'hdbscan',
     'magpylib',
     'wavelets @ git+https://github.com/aphoffmann/wavelets.git',
     'pymssa @ git+https://github.com/aphoffmann/pymssa.git',
-    'nsgt @ git+https://github.com/aphoffmann/nsgt.git'
 ]
 
 DEPENDENCY_LINKS = [    
