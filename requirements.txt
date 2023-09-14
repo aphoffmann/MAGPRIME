@@ -8,9 +8,9 @@ matplotlib
 toolz
 cvxpy
 scikit-learn
-nsgt
 tqdm
 hdbscan
 magpylib
 git+https://github.com/aphoffmann/wavelets.git
 git+https://github.com/aphoffmann/pymssa.git
+git+https://github.com/aphoffmann/nsgt.git
