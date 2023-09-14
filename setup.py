@@ -10,14 +10,14 @@ REQUIREMENTS = [
     'tqdm',
     'matplotlib',
     'toolz',
-    'nsgt',
     'cvxpy',
     'scikit-learn',
     'tqdm',
     'hdbscan',
     'magpylib',
     'wavelets @ git+https://github.com/aphoffmann/wavelets.git',
-    'pymssa @ git+https://github.com/aphoffmann/pymssa.git'
+    'pymssa @ git+https://github.com/aphoffmann/pymssa.git',
+    'nsgt @ git+https://github.com/aphoffmann/nsgt.git'
 ]
 
 DEPENDENCY_LINKS = [    

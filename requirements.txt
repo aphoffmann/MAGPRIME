@@ -6,7 +6,6 @@ numba
 tqdm
 matplotlib
 toolz
-nsgt
 cvxpy
 scikit-learn
 tqdm
@@ -14,3 +13,4 @@ hdbscan
 magpylib
 git+https://github.com/aphoffmann/wavelets.git
 git+https://github.com/aphoffmann/pymssa.git
+git+https://github.com/aphoffmann/nsgt.git
