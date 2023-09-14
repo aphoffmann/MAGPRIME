@@ -19,21 +19,22 @@ def clean(B0, triaxial = True):
     """
 
     if(triaxial == False):
-        raise("'triaxial' is set to False. PiCoG only works for triaxial data")
+        raise Exception("'triaxial' is set to False. PiCoG only works for triaxial data")
 
-    # Initialize an array to store the corrected magnetic field data
-    B_corrected = np.zeros(B0.shape[1:])
-    n_sensors = B0.shape[0]
+    B_corrected = clean_first_order(B0)
 
-    # Detrend B0 with a uniform filter and save the trend
-    B0 = B0 - np.mean(B0, axis=2, keepdims=True)
-    B0_trend = uniform_filter1d(B0, size=400, axis=2)
+    # Return the corrected magnetic field data
+    return B_corrected
 
+def clean_first_order(B):
+    B_corrected = np.zeros(B.shape[1:])
+    n_sensors = B.shape[0]
+    
     # Loop over the sensor pairs
     for i in range(n_sensors):
         for j in range(i+1, n_sensors):
             # Compute the difference between the measurements from the two sensors
-            Delta_B0 = B0[i] - B0[j]
+            Delta_B0 = B[i] - B[j]
 
             # Perform principal component analysis on Delta_B0
             pca = PCA(n_components=3)
@@ -44,7 +45,7 @@ def clean(B0, triaxial = True):
 
             # Project Delta_B0 and B0[i] onto the maximum variance direction
             Delta_B0_x, rotation = rotate_data(Delta_B0, max_var_dir)
-            B0_i_x, _ =  rotate_data(B0[i], max_var_dir)
+            B0_i_x, _ =  rotate_data(B[i], max_var_dir)
 
             # Estimate the scaling factor alpha using the variance ratio
             alpha = np.std(B0_i_x[0]) / np.std(Delta_B0_x[0])
@@ -58,7 +59,6 @@ def clean(B0, triaxial = True):
 
     # Return the corrected magnetic field data
     return B_corrected
-
 
 def rotate_data(data, vector):
     """

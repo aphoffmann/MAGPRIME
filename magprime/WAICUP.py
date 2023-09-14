@@ -15,7 +15,7 @@ scales = None
 fs = 1
 dj = 1/12
 uf = 400
-denoise = True
+denoise = False
 
 def clean(B, triaxial = True):
     """

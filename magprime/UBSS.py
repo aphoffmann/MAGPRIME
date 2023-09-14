@@ -27,7 +27,6 @@ hdbscan = hdbscan.HDBSCAN(min_samples = 4)
 Q = 10
 lowf = 0.1
 fs = 1
-duration = 1
 
 "Compressive Sensing"
 weight = 1

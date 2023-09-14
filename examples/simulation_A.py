@@ -15,6 +15,10 @@ warnings.filterwarnings("ignore")
 "Noise Reduction Algorithms"
 from magprime import ICA, MSSA, NESS, PiCoG, SHEINKER, REAM, UBSS, WAICUP
 
+"Parameters"
+alpha_couplings = None # Coupling matrix between the sensors and sources for NESS
+
+
 def createMixingMatrix(axis = 0):
     "Create Sensors"
     s1 = magpy.Sensor(position=(250,250,350), style_size=1.8)
@@ -26,11 +30,15 @@ def createMixingMatrix(axis = 0):
     d2 = magpy.current.Loop(current=-4.1, diameter=40,  position=(150,250,60))    
     d3 = magpy.current.Loop(current=5.1, diameter=20,  position=(450,250,20))
     d4 = magpy.current.Loop(current=-5.1, diameter=30,  position=(300,250,50)) 
+    src = [d1,d2,d3,d4]
 
-    
+    "Calculate Couplings"
+    global alpha_couplings;
+    alpha_couplings = np.sum(s1.getB(src), axis = 0)/ np.sum(s2.getB(src), axis = 0)
+
     mixingMatrix = np.zeros((5,len(s)))
     mixingMatrix[0] = np.ones(len(s))
-    src = [d1,d2,d3,d4]
+
     for i in range(len(src)):
         mixing_vector = (src[i].getB(s)*1e6).T[axis]
         mixingMatrix[i+1] = mixing_vector*10
@@ -96,8 +104,7 @@ def run():
     B_sheinker = SHEINKER.clean(np.copy(B))
 
     "NESS"
-    NESS.r1 = 350
-    NESS.r2 = 700
+    NESS.aii = alpha_couplings
     B_ness = NESS.clean(np.copy(B))
 
     "PiCoG"
@@ -108,11 +115,108 @@ def run():
     B_ream = REAM.clean(np.copy(B))
 
     "UBSS"
+    UBSS.boom = 1
+    UBSS.sigma = 25
+    UBSS.lambda_ = 2
+    UBSS.fs = sampleRate
+    UBSS.Q = 20
+    B_ubss = UBSS.clean(np.copy(B))
+
     "WAICUP"
+    WAICUP.fs = sampleRate
+    WAICUP.uf = 400
+    WAICUP.denoise = False
+    B_waicup = WAICUP.clean(np.copy(B))
+
     "ICA"
+    ICA.uf = 400
+    ICA.detrend = True
+    B_ica = ICA.clean(np.copy(B))
+
     "MSSA"
+    MSSA.window_size = 400
+    MSSA.uf = 400
+    MSSA.detrend = True
+    B_mssa = MSSA.clean(np.copy(B))   
+
+    "Calculate RMSE of inner [500:-500] for each algorithm for each axis with respect to the ambient magnetic field, swarm, and also do the boom B[1]"
+    rmse = np.zeros((3,9))
+    rmse[0,0] = mean_squared_error(swarm[0,500:-500], B_sheinker[0,500:-500], squared=False)
+    rmse[0,1] = mean_squared_error(swarm[0,500:-500], B_ness[0,500:-500], squared=False)
+    rmse[0,2] = mean_squared_error(swarm[0,500:-500], B_picog[0,500:-500], squared=False)
+    rmse[0,3] = mean_squared_error(swarm[0,500:-500], B_ream[0,500:-500], squared=False)
+    rmse[0,4] = mean_squared_error(swarm[0,500:-500], B_ubss[0,500:-500], squared=False)
+    rmse[0,5] = mean_squared_error(swarm[0,500:-500], B_waicup[0,500:-500], squared=False)
+    rmse[0,6] = mean_squared_error(swarm[0,500:-500], B_ica[0,500:-500], squared=False)
+    rmse[0,7] = mean_squared_error(swarm[0,500:-500], B_mssa[0,500:-500], squared=False)
+    rmse[0,8] = mean_squared_error(swarm[0,500:-500], B[1,0,500:-500], squared=False)
+
+    rmse[1,0] = mean_squared_error(swarm[1,500:-500], B_sheinker[1,500:-500], squared=False)
+    rmse[1,1] = mean_squared_error(swarm[1,500:-500], B_ness[1,500:-500], squared=False)
+    rmse[1,2] = mean_squared_error(swarm[1,500:-500], B_picog[1,500:-500], squared=False)
+    rmse[1,3] = mean_squared_error(swarm[1,500:-500], B_ream[1,500:-500], squared=False)
+    rmse[1,4] = mean_squared_error(swarm[1,500:-500], B_ubss[1,500:-500], squared=False)
+    rmse[1,5] = mean_squared_error(swarm[1,500:-500], B_waicup[1,500:-500], squared=False)
+    rmse[1,6] = mean_squared_error(swarm[1,500:-500], B_ica[1,500:-500], squared=False)
+    rmse[1,7] = mean_squared_error(swarm[1,500:-500], B_mssa[1,500:-500], squared=False)
+    rmse[1,8] = mean_squared_error(swarm[1,500:-500], B[1,1,500:-500], squared=False)
+
+    rmse[2,0] = mean_squared_error(swarm[2,500:-500], B_sheinker[2,500:-500], squared=False)
+    rmse[2,1] = mean_squared_error(swarm[2,500:-500], B_ness[2,500:-500], squared=False)
+    rmse[2,2] = mean_squared_error(swarm[2,500:-500], B_picog[2,500:-500], squared=False)
+    rmse[2,3] = mean_squared_error(swarm[2,500:-500], B_ream[2,500:-500], squared=False)
+    rmse[2,4] = mean_squared_error(swarm[2,500:-500], B_ubss[2,500:-500], squared=False)
+    rmse[2,5] = mean_squared_error(swarm[2,500:-500], B_waicup[2,500:-500], squared=False)
+    rmse[2,6] = mean_squared_error(swarm[2,500:-500], B_ica[2,500:-500], squared=False)
+    rmse[2,7] = mean_squared_error(swarm[2,500:-500], B_mssa[2,500:-500], squared=False)
+    rmse[2,8] = mean_squared_error(swarm[2,500:-500], B[1,2,500:-500], squared=False)
+
+    "Print RMSE Results in a table"
+    print(pd.DataFrame(rmse, columns = ['SHEINKER', 'NESS', 'PiCoG', 'REAM', 'UBSS', 'WAICUP', 'ICA', 'MSSA', 'BOOM'], index = ['X', 'Y', 'Z']))
+
+    """
+        SHEINKER        NESS       PiCoG       REAM       UBSS     WAICUP         ICA       MSSA  
+    X   6.117220  13.8961299  341.708833  16.372984  5.8774314  10.954444   24.565284  24.887799  
+    Y   4.366110  4.83097452  388.961276   4.953542   3.485227   7.112823   48.078402   2.505182 
+    Z  14.887682  59.9939193  256.460033  25.710732  32.710411   9.381458   14.027635  19.596584  
+    """
+
+    "Create a stackplot of all of the algorithms results with swarm plotted over them. It should be 3x3"
+    fig, axs = plt.subplots(3, 3, sharex=True, sharey=True, figsize=(10,10))
+    axs[0, 0].plot(B_sheinker.T, label='SHEINKER')
+    axs[0, 0].plot(swarm.T, color='black', label='Swarm')
+    axs[0, 0].set_title('SHEINKER')
+    axs[0, 1].plot(B_ness.T, label='NESS')
+    axs[0, 1].plot(swarm.T, color='black', label='Swarm')
+    axs[0, 1].set_title('NESS')
+    axs[0, 2].plot(B_picog.T, label='PiCoG')
+    axs[0, 2].plot(swarm.T, color='black', label='Swarm')
+    axs[0, 2].set_title('PiCoG')
+    axs[1, 0].plot(B_ream.T, label='REAM')
+    axs[1, 0].plot(swarm.T, color='black', label='Swarm')
+    axs[1, 0].set_title('REAM')
+    axs[1, 1].plot(B_ubss.T, label='UBSS')
+    axs[1, 1].plot(swarm.T, color='black', label='Swarm')
+    axs[1, 1].set_title('UBSS')
+    axs[1, 2].plot(B_waicup.T, label='WAICUP')
+    axs[1, 2].plot(swarm.T, color='black', label='Swarm')
+    axs[1, 2].set_title('WAICUP')
+    axs[2, 0].plot(B_ica.T, label='ICA')
+    axs[2, 0].plot(swarm.T, color='black', label='Swarm')
+    axs[2, 0].set_title('ICA')
+    axs[2, 1].plot(B_mssa.T, label='MSSA')
+    axs[2, 1].plot(swarm.T, color='black', label='Swarm')
+    axs[2, 1].set_title('MSSA')
+    axs[2, 2].plot(B[1].T, label='Boom')
+    axs[2, 2].plot(swarm.T, color='black', label='Swarm')
+    axs[2, 2].set_title('Boom')
     
-    
+
+    plt.show()
+
+    # Save Plot
+    fig.savefig('examples\simulation_A.png', dpi=300, bbox_inches='tight')
+
 
 if __name__ == "__main__":
     run()

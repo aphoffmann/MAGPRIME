@@ -9,15 +9,12 @@ Description: Noise Removal via independent component analysis. This algorithm
 from sklearn.decomposition import FastICA
 import numpy as np
 from scipy import stats
-from scipy import signal
-import matplotlib.pyplot as plt
 from scipy.ndimage import uniform_filter1d
 
 import warnings
 warnings.filterwarnings("ignore")
 
 "Parameters"
-fs = 1 # Sampling Frequency
 uf = 400 # Uniform Filter Size for detrending
 detrend = True
 

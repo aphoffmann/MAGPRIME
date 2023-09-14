@@ -12,12 +12,8 @@ Description: Noise Removal via Multichannel Singular Spectrum Analysis
 """
 import numpy as np
 from scipy import stats
-from scipy import signal
-import matplotlib.pyplot as plt
 from scipy.ndimage import uniform_filter1d
 from pymssa import MSSA 
-import warnings
-warnings.filterwarnings("ignore")
 
 "Parameters"
 window_size = 400 # Window size for MSSA
