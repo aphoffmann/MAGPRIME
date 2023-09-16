@@ -5,3 +5,4 @@ magprime.egg-info/PKG-INFO
 magprime.egg-info/SOURCES.txt
 *.pyc
 *.pyc
+*.nc
