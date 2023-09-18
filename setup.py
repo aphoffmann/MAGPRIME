@@ -13,7 +13,6 @@ REQUIREMENTS = [
     'cvxpy',
     'scikit-learn',
     'tqdm',
-    'nsgt',
     'hdbscan',
     'magpylib',
     'wavelets @ git+https://github.com/aphoffmann/wavelets.git',

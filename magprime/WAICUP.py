@@ -14,6 +14,7 @@ scales = None
 "Parameters"
 fs = 1
 dj = 1/12
+detrend = True
 uf = 400
 denoise = False
 
@@ -37,7 +38,7 @@ def cleanWAICUP(sensors):
     dt = 1/fs    
 
     "Detrend"
-    if(uf is not None):
+    if(detrend):
         trend = uniform_filter1d(sensors, size=uf)
         sensors -= trend
     
@@ -49,7 +50,7 @@ def cleanWAICUP(sensors):
         amb_mf = savgol_filter(amb_mf, 10, 2, mode='nearest')
     
     "Retrend"
-    if(uf is not None):
+    if(detrend):
         amb_mf += np.mean(trend, axis = 0)
 
 

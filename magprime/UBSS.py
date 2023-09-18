@@ -25,7 +25,6 @@ hdbscan = hdbscan.HDBSCAN(min_samples = 4)
 
 "NSGT Transform"
 Q = 10
-lowf = 0.1
 fs = 1
 
 "Compressive Sensing"
@@ -178,6 +177,7 @@ def clusterNSGT(sig):
     length = sig.shape[-1]
     bins = Q
     fmax = fs/2
+    lowf = 2 * Q * fs / length
     nsgt = CQ_NSGT(lowf, fmax, bins, fs, length, multichannel=True)
         
     "Take Non-stationary Gabor Transform"
@@ -224,11 +224,12 @@ def clusterNSGT(sig):
     return
 
 """Define a function to demix a signal using non-stationary Gabor transform (NSGT)"""
-def demixNSGT(sig, weighted = True):
+def demixNSGT(sig):
     "Create instance of NSGT and set NSGT parameters"
     length = sig.shape[-1]
     bins = Q
     fmax = fs/2
+    lowf = 2 * Q * fs / length
     nsgt = CQ_NSGT(lowf, fmax, bins, fs, length, multichannel=True)
     
     "Apply the forward transform to the signal and convert to numpy array"
