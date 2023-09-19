@@ -28,13 +28,13 @@ pip install magprime git+https://github.com/aphoffmann/MAGPRIME.git
 Alternatively, you can clone the repository and install the library manually:
 
 ```
-git clone https://github.com/your_username/MAGPRIME.git
+git clone https://github.com/aphoffmann/MAGPRIME.git
 cd MAGPRIME
 python setup.py install
 ```
 or 
 ```
-git clone https://github.com/your_username/MAGPRIME.git
+git clone https://github.com/aphoffmann/MAGPRIME.git
 cd MAGPRIME
 pip install .
 ```
