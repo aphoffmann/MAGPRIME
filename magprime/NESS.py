@@ -15,6 +15,7 @@ aii : Coupling matrix between the sensors and sources for NESS
 """
 
 import numpy as np
+from scipy.ndimage import uniform_filter1d
 
 "General Parameters"
 uf = 400            # Uniform Filter Size for detrending
