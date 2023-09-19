@@ -1,13 +1,22 @@
-
 """
-Authors: Alex Hoffmann, 
-Date: 04/21/2023
-Description: Testing Ream Gradiometry
+Author: XYZ, Alex Hoffmann
+Last Update: 9/19/2023
+Description: Todo
+
+General Parameters
+----------
+uf : window size for uniform filter used to detrend the data
+detrend : boolean for whether to detrend the data
 """
 
 import numpy as np
 from sklearn.decomposition import PCA
 from scipy.spatial.transform import Rotation as R
+from scipy.ndimage import uniform_filter1d
+
+"General Parameters"
+uf = 400            # Uniform Filter Size for detrending
+detrend = False     # Detrend the data
 
 def clean(B, triaxial = True):
     """
@@ -17,14 +26,21 @@ def clean(B, triaxial = True):
     Output:
         result: reconstructed ambient field without the spacecraft-generated fields (axes, n_samples)
     """
-
+    if(detrend):
+        trend = uniform_filter1d(B, size=uf, axis = -1)
+        B -= trend
+    
     if(triaxial == False):
         raise Exception("'triaxial' is set to False. PiCoG only works for triaxial data")
 
-    B_corrected = clean_first_order(B)
+    result = clean_first_order(B)
 
+    if(detrend):
+        result += np.mean(trend, axis=0)
+
+            
     # Return the corrected magnetic field data
-    return B_corrected
+    return result
 
 def clean_first_order(B):
     B_corrected = np.zeros(B.shape[1:])

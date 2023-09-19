@@ -1,22 +1,34 @@
 """
 Author: Alex Hoffmann
-Date: 3/11/2023
-Description: Implementation of Wavelet Adaptive Interference Cancellation for Underdetermined Platforms
+Last Update: 9/19/2023
+Description: Todo
+
+General Parameters
+----------
+uf : window size for uniform filter used to detrend the data
+detrend : boolean for whether to detrend the data
+
+Algorithm Parameters
+----------
+fs : sampling frequency
+dj : wavelet scale spacing
+scales : scales used in the wavelet transform (set by the algorithm)
 """
 
 import numpy as np
 from wavelets import WaveletAnalysis
 from scipy.ndimage import uniform_filter1d
 import itertools
-from scipy.signal import savgol_filter
-scales = None
 
-"Parameters"
-fs = 1
-dj = 1/12
-detrend = True
-uf = 400
-denoise = False
+
+"General Parameters"
+uf = 400            # Uniform Filter Size for detrending
+detrend = False     # Detrend the data
+
+"Algorithm Parameters"
+fs = 1              # Sampling Frequency
+dj = 1/12           # Wavelet Scale Spacing
+scales = None       # Scales used in the wavelet transform
 
 def clean(B, triaxial = True):
     """
@@ -42,20 +54,14 @@ def cleanWAICUP(sensors):
         trend = uniform_filter1d(sensors, size=uf)
         sensors -= trend
     
-    if(sensors.shape[0] == 2): amb_mf = dual(sensors, dt, dj)
-    else: amb_mf = multi(sensors, dt, dj)
-    
-    "Denoise"
-    if(denoise):
-        amb_mf = savgol_filter(amb_mf, 10, 2, mode='nearest')
+    if(sensors.shape[0] == 2): result = dual(sensors, dt, dj)
+    else: result = multi(sensors, dt, dj)
     
     "Retrend"
     if(detrend):
-        amb_mf += np.mean(trend, axis = 0)
+        result += np.mean(trend, axis = 0)
 
-
-    "Return Ambient Magnetic Field"
-    return(amb_mf)
+    return(result)
     
 
 def dual(sig, dt, dj):

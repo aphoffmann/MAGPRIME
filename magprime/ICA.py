@@ -1,11 +1,20 @@
 """
-Author: Alex Hoffmann
-Date: 10/24/2022
-Description: Noise Removal via independent component analysis. This algorithm
-             is based on Imajo et al. (2021), but is applied to only one axis.
-             The noise IC's are identified through their correlation with the
-             difference between the magnetometers.
+Author: Shun Imajo, Alex Hoffmann
+Last Update: 9/19/2023
+Description: This file implements a noise removal method using independent component
+             analysis (ICA) for magnetic field data from multiple magnetometers. 
+             The method follows the approach of Imajo et al. (2021). The method 
+             separates the noise components from the signal components based on 
+             their statistical independence and non-Gaussianity. The natural magnetic 
+             field components are then identified by their similarity in the mixing
+             matrix (ica.mixing_).
+             
+General Parameters
+----------
+uf : window size for uniform filter used to detrend the data
+detrend : boolean for whether to detrend the data
 """
+
 from sklearn.decomposition import FastICA
 import numpy as np
 from scipy import stats
@@ -14,49 +23,49 @@ from scipy.ndimage import uniform_filter1d
 import warnings
 warnings.filterwarnings("ignore")
 
-"Parameters"
-uf = 400 # Uniform Filter Size for detrending
-detrend = True
+"General Parameters"
+uf = 400            # Uniform Filter Size for detrending
+detrend = False     # Detrend the data
 
 def clean(B, triaxial = True):
     """
     B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
     triaxial: boolean for whether to use triaxial or uniaxial ICA
     """
-
     if(triaxial):
-        recovered_signal = cleanTriAxis(B)
+        result = cleanTriAxis(B)
     else:
-        recovered_signal = cleanAxis(B)
-    return(recovered_signal)
+        result = cleanAxis(B)
+
+    return(result)
         
     
 
-def cleanAxis(sig):
-    n_components = sig.shape[0]
+def cleanAxis(B):
+    n_components = B.shape[0]
     ica = FastICA(n_components=n_components, whiten=False, max_iter=20000, tol = 1e-8)
     
     "Remove Trend"
     if(detrend): 
-        trend = uniform_filter1d(sig, size=uf)
-        sig -= trend
+        trend = uniform_filter1d(B, size=uf)
+        B -= trend
     
     "Apply ICA"
-    X = sig.T # (n_samples, n_features)
+    X = B.T # (n_samples, n_features)
     S_ = ica.fit_transform(X)  
     S_ = S_.T
     
     "Find Ambient IC through lowest correlation with the difference"
-    diff = np.zeros(sig.shape[-1])
-    for i in range(sig.shape[0]-1):
-        diff += (sig[i+1] - sig[i])
+    diff = np.zeros(B.shape[-1])
+    for i in range(B.shape[0]-1):
+        diff += (B[i+1] - B[i])
 
-    r = np.zeros(sig.shape[0])
-    for i in range(sig.shape[0]):
+    r = np.zeros(B.shape[0])
+    for i in range(B.shape[0]):
         r[i] = np.abs(stats.pearsonr(diff, S_[i])[0])
         
     "Reapply Trend"
-    recovered_signal = S_[np.argmin(r)] #+ np.mean(filtered, axis = 0) 
+    recovered_signal = S_[np.argmin(r)]
     
     if(detrend):
         recovered_signal += np.mean(trend, axis = 0)
@@ -75,9 +84,9 @@ def cleanTriAxis(B):
     ica = FastICA(n_components=n_components, whiten="unit-variance", max_iter=1000)
     
     "Remove Trend"
-    trend = uniform_filter1d(sig, size=uf)
-    sig -= trend
-
+    if(detrend): 
+        trend = uniform_filter1d(sig, size=uf)
+        sig -= trend
     
     "Apply ICA"
     X = sig.T # (n_samples, n_features)
@@ -92,8 +101,15 @@ def cleanTriAxis(B):
     
     "Select IC's with lowest correlation with the difference and reapply trend"
     recovered_signal = np.zeros((3, sig.shape[-1]))
-    recovered_signal[0] = S_[args[0]]*gain[0][args[0]] + np.mean(trend[:step], axis = 0)
-    recovered_signal[1] = S_[args[1]]*gain[1][args[1]] + np.mean(trend[step:2*step], axis = 0) 
-    recovered_signal[2] = S_[args[2]]*gain[2][args[2]] + np.mean(trend[2*step:3*step], axis = 0) 
-        
+
+    if(detrend):
+        recovered_signal[0] = S_[args[0]]*gain[0][args[0]] + np.mean(trend[:step], axis = 0)
+        recovered_signal[1] = S_[args[1]]*gain[1][args[1]] + np.mean(trend[step:2*step], axis = 0) 
+        recovered_signal[2] = S_[args[2]]*gain[2][args[2]] + np.mean(trend[2*step:3*step], axis = 0) 
+    else:
+        recovered_signal[0] = S_[args[0]]*gain[0][args[0]]
+        recovered_signal[1] = S_[args[1]]*gain[1][args[1]] 
+        recovered_signal[2] = S_[args[2]]*gain[2][args[2]]
+
+
     return(recovered_signal)

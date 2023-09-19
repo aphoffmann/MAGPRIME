@@ -1,25 +1,33 @@
-# -*- coding: utf-8 -*-
 """
-Created on Tue Nov 29 14:55:02 2022
+Author: Matt Finley, Alex Hoffmann
+Last Update: 9/19/2023
+Description: Todo
 
-@author: Alex
+General Parameters
+----------
+uf : window size for uniform filter used to detrend the data
+detrend : boolean for whether to detrend the data
+
+Algorithm Parameters
+----------
+window_size : window size for MSSA
+alpha : correlation threshold for identifying interference
+variance_explained_threshold : variance explained threshold for MSSA
 """
 
-"""
-Author: Alex Hoffmann
-Date: 11/29/2022
-Description: Noise Removal via Multichannel Singular Spectrum Analysis
-"""
 import numpy as np
 from scipy import stats
 from scipy.ndimage import uniform_filter1d
 from pymssa import MSSA 
 
 "Parameters"
-window_size = 400 # Window size for MSSA
-uf = 400 # Uniform Filter Size for detrending
-alpha = 0.05 # Correlation threshold for identifying interference
-detrend = True # Boolean for whether to detrend the signal
+uf = 400                                # Uniform Filter Size for detrending
+detrend = False                         # Detrend the data
+
+"Algorithm Parameters"
+window_size = 400                       # Window size for MSSA
+alpha = 0.05                            # Correlation threshold for identifying interference
+variance_explained_threshold = 0.995    # Variance explained threshold for MSSA
 
 def clean(B, triaxial = True):
     """
@@ -44,7 +52,7 @@ def cleanMSSA(sig):
     
     "Create MSSA Object and Fit"
     mssa = MSSA(n_components='variance_threshold',
-               variance_explained_threshold=0.995,
+               variance_explained_threshold=variance_explained_threshold,
                window_size=window_size,
                verbose=False)
     mssa.fit(sig.T)

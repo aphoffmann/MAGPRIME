@@ -1,3 +1,24 @@
+"""
+Author: Alex Hoffmann
+Last Update: 9/19/2023
+Description: 
+             
+General Parameters
+----------
+uf : window size for uniform filter used to detrend the data
+detrend : boolean for whether to detrend the data
+
+Algorithm Parameters
+----------
+sigma : magnitude filter threshold
+lambda_ : magnitude filter threshold factor
+sspTol : SSP filter threshold
+Q : number of subbands
+fs : sampling frequency
+weight : weight for compressive sensing
+boom : index of boom magnetometer in (n_sensors, axes, n_samples) array
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
@@ -8,28 +29,28 @@ import multiprocessing as mp
 from nsgt import CQ_NSGT
 import tqdm
 from functools import partial
+from scipy.ndimage import uniform_filter1d
 
-"Results and Magnetometer count"
+
+"General Parameters"
+uf = 400            # Uniform Filter Size for detrending
+detrend = False     # Detrend the data
+
+"Algorithm Parameters"
+sigma = 100         # Magnitude Filter Threshold
+lambda_ = 1.2       # Magnitude Filter Threshold Factor
+sspTol = 15         # SSP Filter Threshold
+Q = 10              # Number of Subbands
+fs = 1              # Sampling Frequency
+weight = 1          # Weight for Compressive Sensing
+boom = None         # Index of boom magnetometer in (n_sensors, axes, n_samples) array
+
+"Internal Parameters"
 magnetometers = 3
 result = None
-
-"Magnitude and SSP Filters"
-sigma = 100
-lambda_ = 1.2
-sspTol = 15
-
-"Clustering"
 clusterCentroids = collections.OrderedDict({0:
                        np.ones(magnetometers) })
 hdbscan = hdbscan.HDBSCAN(min_samples = 4)
-
-"NSGT Transform"
-Q = 10
-fs = 1
-
-"Compressive Sensing"
-weight = 1
-boom = None # Index of boom magnetometer in (n_sensors, axes, n_samples) array
 
 def clean(B, triaxial = True):
     """
@@ -39,6 +60,9 @@ def clean(B, triaxial = True):
     Output:
         result: reconstructed ambient field without the spacecraft-generated fields (axes, n_samples)
     """
+    if(detrend):
+        trend = uniform_filter1d(B, size=uf, axis = -1)
+        B -= trend
 
     if(triaxial):
         result = np.zeros((3, B.shape[-1]))
@@ -51,6 +75,10 @@ def clean(B, triaxial = True):
         setMagnetometers(B.shape[0])
         clusterNSGT(B)
         result = demixNSGT(B)[0]
+
+    if(detrend):
+        result += np.mean(trend, axis=0)
+    
     return(result)
 
 

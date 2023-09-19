@@ -1,12 +1,33 @@
+"""
+Author: Alex Hoffmann
+Last Update: 9/19/2023
+Description: 
+             
+General Parameters
+----------
+uf : window size for uniform filter used to detrend the data
+detrend : boolean for whether to detrend the data
+
+Algorithm Parameters
+----------
+delta_B : threshold for the change in the differenced field envelope (nT)
+n : number of time steps for the change in the envelope
+p : percentile threshold for identifying spectral peaks (0-100)
+"""
+
 import pandas as pd
 import numpy as np
 from scipy.signal import windows
+from scipy.ndimage import uniform_filter1d
 
-delta_B = None # Threshold for the change in the differenced field envelope (nT)
-n = 10 # number of time steps for the change in the envelope
-p = 98 # percentile threshold for identifying spectral peaks (0-100)
+"General Parameters"
+uf = 400            # Uniform Filter Size for detrending
+detrend = False     # Detrend the data
 
-
+"Algorithm Parameters"
+delta_B = None      # Threshold for the change in the differenced field envelope (nT)
+n = 10              # number of time steps for the change in the envelope
+p = 98              # percentile threshold for identifying spectral peaks (0-100)
 
 def clean(B, triaxial = True):
     """
@@ -20,15 +41,21 @@ def clean(B, triaxial = True):
     if delta_B is None:
         raise ValueError("REAM.delta_B must be set before calling clean()")
 
+    if(detrend):
+        trend = uniform_filter1d(B, size=uf, axis = -1)
+        B -= trend
+
     if(triaxial):
         result = np.zeros(B.shape[1:])
         for axis in range(3):
             result[axis] = gradiometry_filter(B[0,axis,:], B[1,axis,:])
-        return(result)
-
     else:
         result = gradiometry_filter(B[0], B[1])
-        return(result)
+        
+    if(detrend):
+        result += np.mean(trend, axis=0)
+    
+    return(result)
 
 def gradiometry_filter(B1, B2):
     """

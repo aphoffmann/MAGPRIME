@@ -1,13 +1,20 @@
 """
-Author: Alex Hoffmann
-Date: 10/24/2022
-Description: Dual Magnetometer Interference Cancellation by Sheinker and Moldwin (2016)
+Author: Arie Sheinker, Alex Hoffmann
+Last Update: 9/19/2023
+Description: Todo
+
+General Parameters
+----------
+uf : window size for uniform filter used to detrend the data
+detrend : boolean for whether to detrend the data
 """
 import numpy as np
 from scipy.ndimage import uniform_filter1d
 
-detrend = True
-uf = 400 # Uniform Filter Size for detrending
+
+"General Parameters"
+uf = 400            # Uniform Filter Size for detrending
+detrend = False     # Detrend the data
 
 def clean(B, triaxial = True):
     """
