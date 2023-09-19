@@ -9,7 +9,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 from scipy.spatial.transform import Rotation as R
 
-def clean(B0, triaxial = True):
+def clean(B, triaxial = True):
     """
     Perform Principal Component gradiometry PCA on the magnetic field data
     Input:
@@ -21,44 +21,50 @@ def clean(B0, triaxial = True):
     if(triaxial == False):
         raise Exception("'triaxial' is set to False. PiCoG only works for triaxial data")
 
-    B_corrected = clean_first_order(B0)
+    B_corrected = clean_first_order(B)
 
     # Return the corrected magnetic field data
     return B_corrected
 
 def clean_first_order(B):
     B_corrected = np.zeros(B.shape[1:])
-    n_sensors = B.shape[0]
     
-    # Loop over the sensor pairs
-    for i in range(n_sensors):
-        for j in range(i+1, n_sensors):
-            # Compute the difference between the measurements from the two sensors
-            Delta_B0 = B[i] - B[j]
+    # Compute the difference between the measurements from the two sensors
+    Delta_B = B[1] - B[0]
 
-            # Perform principal component analysis on Delta_B0
-            pca = PCA(n_components=3)
-            pca.fit_transform(Delta_B0.T)
+    # Perform principal component analysis on Delta_B
+    pca = PCA(n_components=3)
+    pca.fit_transform(Delta_B.T)
 
-            # Get the maximum variance direction of Delta_B0
-            max_var_dir = pca.components_[0]
+    # Get the maximum variance direction of Delta_B
+    max_var_dir = pca.components_[0]
 
-            # Project Delta_B0 and B0[i] onto the maximum variance direction
-            Delta_B0_x, rotation = rotate_data(Delta_B0, max_var_dir)
-            B0_i_x, _ =  rotate_data(B[i], max_var_dir)
+    # Project Delta_B and B[i] onto the maximum variance direction
+    Delta_B_rot, rotation = rotate_data(Delta_B, max_var_dir)
+    B_rot, _ =  rotate_data(B[0], max_var_dir)
 
-            # Estimate the scaling factor alpha using the variance ratio
-            alpha = np.std(B0_i_x[0]) / np.std(Delta_B0_x[0])
+    # Estimate the scaling factor alpha using the variance ratio
+    alpha =  np.sqrt(np.var(Delta_B[0]) / np.var(B_rot[0]))
 
-            # Correct the maximum variance component of B0[i] using alpha and Delta_B0_x
-            B_corrected[0] = B0_i_x[i][0] - alpha * Delta_B0_x[0]
-            B_corrected[1] = B0_i_x[i][1]
-            B_corrected[2] = B0_i_x[i][2]
+    # Correct the maximum variance component of B0[i] using alpha and Delta_B0_x
+    B_corrected[0] = B_rot[0] - alpha * Delta_B[0]
+    B_corrected[1] = B_rot[1]
+    B_corrected[2] = B_rot[2]
 
-            B_corrected = rotation.inv().apply(B_corrected.T).T
+    B_corrected = rotation.inv().apply(B_corrected.T).T
 
     # Return the corrected magnetic field data
     return B_corrected
+
+def clean_higher_order(B, order = 2):
+    B_new = np.copy(B)
+    for i in range(order):
+        B_0 = clean_first_order(B_new)
+        B_1 = clean_first_order(B_new[[1,0]])
+        B_new = np.stack((B_0,B_1))
+    return(B_0)
+
+
 
 def rotate_data(data, vector):
     """

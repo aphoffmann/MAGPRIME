@@ -50,7 +50,7 @@ from magprime import ICA, MSSA, NESS, PiCoG, SHEINKER, REAM, UBSS, WAICUP
 b = load_data_function()
 
 # Set any additional algorithm-specific arguments
-UBSS. sigma = 10 # nT
+UBSS.sigma = 10 # nT
 UBSS.fs = 50 # Hz
 
 # Clean the signals using the WAIC-UP algorithm
