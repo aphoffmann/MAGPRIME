@@ -22,7 +22,7 @@ MAGPRIME (MAGnetic signal PRocessing, Interference Mitigation, and Enhancement) 
 MAGPRIME requires Python 3.9 or later. You can install the library using `pip`:
 
 ```bash
-pip install magprime git+https://github.com/aphoffmann/MAGPRIME.git
+pip install git+https://github.com/aphoffmann/MAGPRIME.git
 
 ```
 Alternatively, you can clone the repository and install the library manually:
