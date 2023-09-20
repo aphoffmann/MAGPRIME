@@ -1,7 +1,9 @@
 """
 Author: Alex Hoffmann, 
-Date: 05/22/2023
+Date: 09/20/2023
 Description: Magnetic Noise removal simulation in a gradiometry configuration.
+             Noise signals to use: Reaction Wheels, Michibiki, Swarm, Etc
+             TODO: Consider doing Monte Carlo Simulation of N = 100 runs for each algorithm
 """
 import magpylib as magpy
 import numpy as np
