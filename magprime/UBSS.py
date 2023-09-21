@@ -13,7 +13,7 @@ Algorithm Parameters
 sigma : magnitude filter threshold
 lambda_ : magnitude filter threshold factor
 sspTol : SSP filter threshold
-Q : number of subbands
+bpo : Number of Bands Per Octave in the NSGT Transform
 fs : sampling frequency
 weight : weight for compressive sensing
 boom : index of boom magnetometer in (n_sensors, axes, n_samples) array
@@ -40,10 +40,11 @@ detrend = False     # Detrend the data
 sigma = 100         # Magnitude Filter Threshold
 lambda_ = 1.2       # Magnitude Filter Threshold Factor
 sspTol = 15         # SSP Filter Threshold
-Q = 10              # Number of Subbands
+bpo = 10            # Number of Bands Per Octave in the NSGT Transform
 fs = 1              # Sampling Frequency
 weight = 1          # Weight for Compressive Sensing
 boom = None         # Index of boom magnetometer in (n_sensors, axes, n_samples) array
+cs_iters = 5        # Number of Iterations for Compressive Sensing
 
 "Internal Parameters"
 magnetometers = 3
@@ -109,8 +110,8 @@ def processData(A, b, n_clusters, data):
     
     x_ratio = 0
     
-    "Iteratively the system" 
-    for i in range(5):
+    "Iteratively solve the system" 
+    for i in range(cs_iters):
         try:
             problem.solve(solver=cp.ECOS, warm_start=True)
         except:
@@ -203,9 +204,9 @@ def filterSSP(B):
 def clusterNSGT(sig):
     "Create instance of NSGT and set NSGT parameters"
     length = sig.shape[-1]
-    bins = Q
+    bins = bpo
     fmax = fs/2
-    lowf = 2 * Q * fs / length
+    lowf = 2 * bpo * fs / length
     nsgt = CQ_NSGT(lowf, fmax, bins, fs, length, multichannel=True)
         
     "Take Non-stationary Gabor Transform"
@@ -255,9 +256,9 @@ def clusterNSGT(sig):
 def demixNSGT(sig):
     "Create instance of NSGT and set NSGT parameters"
     length = sig.shape[-1]
-    bins = Q
+    bins = bpo
     fmax = fs/2
-    lowf = 2 * Q * fs / length
+    lowf = 2 * bpo * fs / length
     nsgt = CQ_NSGT(lowf, fmax, bins, fs, length, multichannel=True)
     
     "Apply the forward transform to the signal and convert to numpy array"

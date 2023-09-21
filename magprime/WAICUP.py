@@ -23,7 +23,7 @@ import itertools
 
 "General Parameters"
 uf = 400            # Uniform Filter Size for detrending
-detrend = False     # Detrend the data
+detrend = True     # Detrend the data
 
 "Algorithm Parameters"
 fs = 1              # Sampling Frequency

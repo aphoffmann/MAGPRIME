@@ -121,13 +121,13 @@ def run():
     UBSS.sigma = 25
     UBSS.lambda_ = 2
     UBSS.fs = sampleRate
-    UBSS.Q = 20
+    UBSS.bpo = 20
     B_ubss = UBSS.clean(np.copy(B))
 
     "WAICUP"
     WAICUP.fs = sampleRate
     WAICUP.uf = 400
-    WAICUP.denoise = False
+    WAICUP.detrend = True
     B_waicup = WAICUP.clean(np.copy(B))
 
     "ICA"
@@ -191,9 +191,7 @@ def run():
     axs[0, 1].plot(B_ness.T, label='NESS')
     axs[0, 1].plot(swarm.T, color='black', label='Swarm')
     axs[0, 1].set_title('NESS')
-    axs[0, 2].plot(B_picog.T, label='PiCoG')
-    axs[0, 2].plot(swarm.T, color='black', label='Swarm')
-    axs[0, 2].set_title('PiCoG')
+
     axs[1, 0].plot(B_ream.T, label='REAM')
     axs[1, 0].plot(swarm.T, color='black', label='Swarm')
     axs[1, 0].set_title('REAM')
