@@ -6,3 +6,4 @@ magprime.egg-info/SOURCES.txt
 *.pyc
 *.pyc
 *.nc
+*.mat
