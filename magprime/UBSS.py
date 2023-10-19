@@ -71,7 +71,6 @@ def clean(B, triaxial = True):
             setMagnetometers(B.shape[0])
             clusterNSGT(B[:,axis,:])
             result[axis] = demixNSGT(B[:,axis,:])[0]
-        return(result)
     else:
         setMagnetometers(B.shape[0])
         clusterNSGT(B)
@@ -124,7 +123,7 @@ def processData(A, b, n_clusters, data):
             i+=1
         else:
             "Find estimated signal to noise ratio"
-            #if(np.mean(np.abs(b.value)) < sigma): break
+            if(np.mean(np.abs(b.value)) < sigma): i+=1
             
             x_hat = np.abs(x.value); 
             x_ratio = np.sum(x_hat[1:])/( x_hat[0]+ 0.0001)
@@ -133,7 +132,6 @@ def processData(A, b, n_clusters, data):
             w.value[0] = w.value[0] + .1*(x_ratio - w.value[0])
             w.value[0]  = np.clip(w.value[0], .001, 10000)
 
-            
     return x.value
      
 def weightedReconstruction(sig):

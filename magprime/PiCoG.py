@@ -60,7 +60,7 @@ def clean_first_order(B):
     B_rot, _ =  rotate_data(B[0], max_var_dir)
 
     # Estimate the scaling factor alpha using the variance ratio
-    alpha =  np.sqrt(np.var(Delta_B[0]) / np.var(B_rot[0]))
+    alpha =  np.sqrt(np.var(B_rot[0]) / np.var(Delta_B[0]))
 
     # Correct the maximum variance component of B0[i] using alpha and Delta_B0_x
     B_corrected[0] = B_rot[0] - alpha * Delta_B[0]
