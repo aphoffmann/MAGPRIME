@@ -131,7 +131,18 @@ def processData(A, b, n_clusters, data):
             "Find estimated signal to noise ratio"
             if(np.mean(np.abs(b.value)) < sigma): i+=1
             
-            x_hat = np.abs(x.value); 
+            try:
+                x_hat = np.abs(x.value); 
+            except:
+                print(x.value)
+                print(problem.status)
+                print(problem.value)
+                print(problem.solver_stats)
+                print(problem.solver_stats.solve_time)
+                print(problem.solver_stats.num_iters)
+                print(problem.solver_stats.setup_time)
+                print(problem.solver_stats.num_eq_constr)
+            
             x_ratio = np.sum(x_hat[1:])/( x_hat[0]+ 0.0001)
             
             "Update and clip ambient field weight"
