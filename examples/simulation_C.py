@@ -34,7 +34,7 @@ def noiseReactionWheel(fs, N, base_freq, seed):
     t = np.arange(N) / fs
 
     # Create signal.
-    signal = np.sin(2 * np.pi * base_freq * t)
+    signal_rw = np.sin(2 * np.pi * base_freq * t)
 
     # Create down-chirp signal.
     down_chirp_signal = chirp(t[:duration*fs], base_freq, duration, shift_freq, method='hyperbolic')
@@ -42,10 +42,10 @@ def noiseReactionWheel(fs, N, base_freq, seed):
     up_chirp_signal = chirp(t[:duration*fs], shift_freq, duration, base_freq, method='hyperbolic')
 
     # Modify original signal with chirp signal.
-    signal[time_of_shift*fs:(time_of_shift+duration)*fs] = down_chirp_signal
-    signal[(time_of_shift+duration)*fs:(time_of_shift+2*duration)*fs] = up_chirp_signal
+    signal_rw[time_of_shift*fs:(time_of_shift+duration)*fs] = down_chirp_signal
+    signal_rw[(time_of_shift+duration)*fs:(time_of_shift+2*duration)*fs] = up_chirp_signal
 
-    return signal
+    return signal_rw
 
 def noiseMichibiki():
     "Import the magnetometer data from the file"
