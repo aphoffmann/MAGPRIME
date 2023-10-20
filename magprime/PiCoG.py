@@ -44,30 +44,30 @@ def clean(B, triaxial = True):
 
 def clean_first_order(B):
     B_corrected = np.zeros(B.shape[1:])
-    
+
     # Compute the difference between the measurements from the two sensors
     Delta_B = B[1] - B[0]
 
-    # Perform principal component analysis on Delta_B
+    # Find VPS coordinate system of Delta_B
     pca = PCA(n_components=3)
-    pca.fit_transform(Delta_B.T)
-
-    # Get the maximum variance direction of Delta_B
+    pca.fit(Delta_B.T)
     max_var_dir = pca.components_[0]
+    Delta_B_rot, rotation_deltab = rotate_data(Delta_B, max_var_dir)
+    r1 = rotation_deltab.as_matrix()
 
-    # Project Delta_B and B[i] onto the maximum variance direction
-    Delta_B_rot, rotation = rotate_data(Delta_B, max_var_dir)
-    B_rot, _ =  rotate_data(B[0], max_var_dir)
+    # Find VPS coordinate system of B0
+    pca = PCA(n_components=3)
+    pca.fit(B[1].T)
+    max_var_dir = pca.components_[0]
+    B_rot, rotation_b0 = rotate_data(B[1], max_var_dir)
+    r2 = rotation_b0.as_matrix()
 
-    # Estimate the scaling factor alpha using the variance ratio
-    alpha =  np.sqrt(np.var(B_rot[0]) / np.var(Delta_B[0]))
+    # Compute the scaling factor alpha and coupling matrix
+    for i in range(3):
+        alpha = np.sqrt(np.var(B_rot[i]) / np.var(Delta_B_rot[i]))
+        A = -alpha * np.linalg.inv(r2) @ r1
 
-    # Correct the maximum variance component of B0[i] using alpha and Delta_B0_x
-    B_corrected[0] = B_rot[0] - alpha * Delta_B[0]
-    B_corrected[1] = B_rot[1]
-    B_corrected[2] = B_rot[2]
-
-    B_corrected = rotation.inv().apply(B_corrected.T).T
+        B_corrected = B[1] + A @ Delta_B
 
     # Return the corrected magnetic field data
     return B_corrected
