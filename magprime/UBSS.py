@@ -120,6 +120,9 @@ def processData(A, b, n_clusters, data):
             string = f"ECOS Solver Failed\nASSP: {ASSP}\nX: {x.value}\nW: {w.value}\nB: {b.value}\nA: {A.value}\nRatio: {x_ratio}"
             raise Exception(string)
             
+        if(problem.status != 'optimal'):
+            print(x.value)
+            print(problem.status)
         if(ASSP): 
             "Make W[0] Smaller"
             w = cp.inv_pos(cp.abs(x) + 0.01)
