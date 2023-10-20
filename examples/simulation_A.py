@@ -200,7 +200,7 @@ def run():
 
     
     "BEGIN MONTE CARLO SIMULATION"
-    for i in tqdm.tqdm(range(last_seed + 1, 1)):
+    for i in tqdm.tqdm(range(last_seed + 1, 10000)):
         if keyboard.is_pressed("k"):
             break
         random.seed(i)
@@ -315,11 +315,16 @@ def run():
 
         "UBSS"
         UBSS.boom = 1
-        UBSS.sigma = 5
+        UBSS.sigma = 2
         UBSS.lambda_ = 2
         UBSS.fs = sampleRate
-        UBSS.bpo = 10
-        B_ubss = UBSS.clean(np.copy(B))
+        UBSS.bpo = 5
+        try:
+            B_ubss = UBSS.clean(np.copy(B))
+        except:
+            UBSS.sigma = 1
+            UBSS.cs_iters = 1
+            
         rmse_ubss = np.sqrt(((swarm.T-B_ubss.T)**2).mean(axis=0))
         # Calculate Correlation for each axis
         corr_ubss = np.zeros(3); snr_ubss = np.zeros(3)
