@@ -15,7 +15,7 @@ import scipy.spatial.transform as st
 import tqdm
 import os
 import keyboard
-from scipy.ndimage import uniform_filter1d
+from scipy.signal import butter, lfilter
 
 "Noise Reduction Algorithms"
 from magprime import ICA, MSSA, NESS, PiCoG, SHEINKER, REAM, UBSS, WAICUP
@@ -95,7 +95,7 @@ def createMixingMatrix(seed, axis = 0):
     d3 = magpy.current.Loop(current=10, diameter=100, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))
     d4 = magpy.current.Loop(current=10, diameter=100, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290))) 
     src = [d1,d2,d3,d4]
-    plotNoiseFields(s,src)
+    if False: plotNoiseFields(s,src)
 
     "Calculate Couplings"
     global alpha_couplings;
@@ -217,33 +217,29 @@ def run():
         Kz = createMixingMatrix(i, 2)
 
         "Create Mixed Signals"
-        signals[1:] -= uniform_filter1d(signals[1:], size=500, axis = -1)
+        cutoff_freq = 0.01; order = 4; nyquist = 0.5 * 50; normalized_cutoff = cutoff_freq / nyquist
+        b, a = butter(order, normalized_cutoff, btype='low')
+        signals[1:] -= lfilter(b, a, signals[1:])
         Bx = Kx @ signals
 
         signals[0] = swarm[1]
         signals[2] = (michibiki[1][n:n+5000]-np.mean(michibiki[1][n:n+5000]))/np.max(np.abs((michibiki[1][n:n+5000]-np.mean(michibiki[1][n:n+5000]))))
-        signals[1:] -= uniform_filter1d(signals[1:], size=500, axis = -1)
+        signals[1:] -= lfilter(b, a, signals[1:])
         By = Ky @ signals
 
         signals[0] = swarm[2]
         signals[2] = (michibiki[2][n:n+5000]-np.mean(michibiki[2][n:n+5000]))/np.max(np.abs((michibiki[2][n:n+5000]-np.mean(michibiki[2][n:n+5000]))))
-        signals[1:] -= uniform_filter1d(signals[1:], size=500, axis = -1)
+        signals[1:] -= lfilter(b, a, signals[1:])
         Bz = Kz @ signals
 
-        "Add Noise"
-        Bx[0] += np.random.normal(0, 1, N); Bx[1] += np.random.normal(0, 1, N); Bx[2] += np.random.normal(0, 1, N); 
-        By[0] += np.random.normal(0, 1, N); By[1] += np.random.normal(0, 1, N); By[2] += np.random.normal(0, 1, N); 
-        Bz[0] += np.random.normal(0, 1, N); Bz[1] += np.random.normal(0, 1, N); Bz[2] += np.random.normal(0, 1, N); 
-    
-    
         "Create B"
         B = np.array([Bx,By,Bz])
         B = np.swapaxes(B,0,1)
 
         "SHEINKER"
-        SHEINKER.uf = 500
-        SHEINKER.detrend = True
+        # No Detrend
         B_sheinker = SHEINKER.clean(np.copy(B))
+
         rmse_sheinker = np.sqrt(((swarm.T-B_sheinker.T)**2).mean(axis=0))
         corr_sheinker = np.zeros(3); snr_sheinker = np.zeros(3)
         for j in range(3):
@@ -251,11 +247,11 @@ def run():
             snr_sheinker[j] = snr(swarm[j], B_sheinker[j])
 
         "NESS"
-        NESS.uf = 500
+        # No Detrend
         NESS.aii = alpha_couplings
         B_ness = NESS.clean(np.copy(B))
+
         rmse_ness = np.sqrt(((swarm.T-B_ness.T)**2).mean(axis=0))
-        # Calculate Correlation for each axis
         corr_ness = np.zeros(3); snr_ness = np.zeros(3)
         for j in range(3):
             corr_ness[j] = np.corrcoef(swarm[j], B_ness[j])[0,1]
@@ -266,8 +262,8 @@ def run():
         WAICUP.uf = 500
         WAICUP.detrend = True
         B_waicup = WAICUP.clean(np.copy(B))
+
         rmse_waicup = np.sqrt(((swarm.T-B_waicup.T)**2).mean(axis=0))
-        # Calculate Correlation for each axis
         corr_waicup = np.zeros(3); snr_waicup = np.zeros(3)
         for j in range(3):
             corr_waicup[j] = np.corrcoef(swarm[j], B_waicup[j])[0,1]
@@ -275,11 +271,9 @@ def run():
 
 
         "PiCoG"
-        PiCoG.uf = 500
-        PiCoG.detrend = True
         B_picog = PiCoG.clean(np.copy(B))
+        
         rmse_picog = np.sqrt(((swarm.T-B_picog.T)**2).mean(axis=0))
-        # Calculate Correlation for each axis
         corr_picog = np.zeros(3); snr_picog = np.zeros(3)
         for j in range(3):
             corr_picog[j] = np.corrcoef(swarm[j], B_picog[j])[0,1]
@@ -289,21 +283,19 @@ def run():
         ICA.uf = 500
         ICA.detrend = True
         B_ica = ICA.clean(np.copy(B))
+
         rmse_ica = np.sqrt(((swarm.T-B_ica.T)**2).mean(axis=0))
-        # Calculate Correlation for each axis
         corr_ica = np.zeros(3); snr_ica = np.zeros(3)
         for j in range(3):
             corr_ica[j] = np.corrcoef(swarm[j], B_ica[j])[0,1]
             snr_ica[j] = snr(swarm[j], B_ica[j])
 
         "REAM"
-        REAM.uf = 500
-        REAM.detrend = True
         REAM.n = 50
         REAM.delta_B = 5
         B_ream = REAM.clean(np.copy(B))
+
         rmse_ream = np.sqrt(((swarm.T-B_ream.T)**2).mean(axis=0))
-        # Calculate Correlation for each axis
         corr_ream = np.zeros(3); snr_ream = np.zeros(3)
         for j in range(3):
             corr_ream[j] = np.corrcoef(swarm[j], B_ream[j])[0,1]      
@@ -311,13 +303,17 @@ def run():
 
         "UBSS"
         UBSS.boom = 1
-        UBSS.sigma = 5
+        UBSS.sigma = 2
         UBSS.lambda_ = 2
         UBSS.fs = sampleRate
         UBSS.bpo = 10
-        B_ubss = UBSS.clean(np.copy(B))
+        try:
+            B_ubss = UBSS.clean(np.copy(B))
+        except:
+            UBSS.cs_iters = 1
+            B_ubss = UBSS.clean(np.copy(B))
+            
         rmse_ubss = np.sqrt(((swarm.T-B_ubss.T)**2).mean(axis=0))
-        # Calculate Correlation for each axis
         corr_ubss = np.zeros(3); snr_ubss = np.zeros(3)
         for j in range(3):
             corr_ubss[j] = np.corrcoef(swarm[j], B_ubss[j])[0,1]
@@ -328,19 +324,17 @@ def run():
         MSSA.uf = 500
         MSSA.detrend = True
         B_mssa = MSSA.clean(np.copy(B))
+        
         rmse_mssa = np.sqrt(((swarm.T-B_mssa.T)**2).mean(axis=0))
-        # Calculate Correlation for each axis
         corr_mssa = np.zeros(3); snr_mssa = np.zeros(3)
         for j in range(3):
             corr_mssa[j] = np.corrcoef(swarm[j], B_mssa[j])[0,1]    
-            snr_mssa[j] = snr(swarm[j], B_mssa[j])    
+            snr_mssa[j] = snr(swarm[j], B_mssa[j])        
 
         "No Noise Removal"
         rmse_b1 = np.sqrt(((swarm.T-B[0].T)**2).mean(axis=0))
         rmse_b2 = np.sqrt(((swarm.T-B[1].T)**2).mean(axis=0))
         rmse_b3 = np.sqrt(((swarm.T-B[2].T)**2).mean(axis=0))
-
-        # Calculate Correlation for each axis
         corr_b1 = np.zeros(3); snr_b1 = np.zeros(3)
         corr_b2 = np.zeros(3); snr_b2 = np.zeros(3)
         corr_b3 = np.zeros(3); snr_b3 = np.zeros(3)
