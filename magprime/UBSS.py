@@ -114,7 +114,9 @@ def processData(A, b, n_clusters, data):
         try:
             problem.solve(warm_start=True)
         except:
-            problem.solve(solver=cp.SCS, warm_start=True)
+            x.value = np.zeros(n_clusters)
+            if(boom): x.value[0] = b[boom]
+            break
             
         if(ASSP): 
             "Make W[0] Smaller"
