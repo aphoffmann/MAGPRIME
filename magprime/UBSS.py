@@ -115,7 +115,7 @@ def processData(A, b, n_clusters, data):
             problem.solve(solver=cp.ECOS, warm_start=True)
         except:
             x.value = np.zeros(n_clusters); 
-            if(boom): x.value = b.value[boom]
+            if(boom): x.value[0] = b.value[boom]
             continue
             string = f"ECOS Solver Failed\nASSP: {ASSP}\nX: {x.value}\nW: {w.value}\nB: {b.value}\nA: {A.value}\nRatio: {x_ratio}"
             raise Exception(string)
