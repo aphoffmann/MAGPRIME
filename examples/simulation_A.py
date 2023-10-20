@@ -10,13 +10,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import signal
-from sklearn.metrics import mean_squared_error
 import random
 from scipy.signal import chirp
 import scipy.spatial.transform as st
 import tqdm
 import os
-import keyboard
 from scipy.signal import butter, lfilter
 
 "Noise Reduction Algorithms"
@@ -50,7 +48,7 @@ def noiseReactionWheel(fs, N, base_freq, seed):
 
 def noiseMichibiki():
     "Import the magnetometer data from the file"
-    qzs_1 = np.loadtxt(r"examples\SPACE_DATA\michibiki.dat", dtype=np.float, usecols=(0,4,5,6,7,8,9))
+    qzs_1 = np.loadtxt(r"michibiki.dat", dtype=np.float, usecols=(0,4,5,6,7,8,9))
     B_qzs = qzs_1.T
 
     "Subtract the bias from the magnetometer data"
@@ -171,7 +169,6 @@ def snr(x, y):
   else:
     return 10 * np.log10(num / den) # return SNR in decibels
 
-
 def run():
     "Create Signals Arrays"
     duration = 100; sampleRate = 50; N = duration*sampleRate; T = 1/sampleRate
@@ -179,7 +176,7 @@ def run():
     signals = np.zeros((5, samples.shape[0]))
 
     "Import ambient magnetic field signal."
-    df=pd.read_csv('examples\SPACE_DATA\Swarm_MAGA_HR_20150317_0900.csv', sep=',',header=None)
+    df=pd.read_csv('Swarm_MAGA_HR_20150317_0900.csv', sep=',',header=None)
     r = df[10]
     swarm = np.array([np.fromstring(r[i][1:-1], dtype=float, sep=' ') for i in range(1, r.shape[0])]).T[:,160000:160000+N]
 
@@ -200,9 +197,7 @@ def run():
 
     
     "BEGIN MONTE CARLO SIMULATION"
-    for i in tqdm.tqdm(range(last_seed + 1, 10000)):
-        if keyboard.is_pressed("k"):
-            break
+    for i in tqdm.tqdm(range(last_seed + 1, 10)):
         random.seed(i)
         np.random.seed(i)
 
