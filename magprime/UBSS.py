@@ -45,6 +45,7 @@ fs = 1              # Sampling Frequency
 weight = 1          # Weight for Compressive Sensing
 boom = None         # Index of boom magnetometer in (n_sensors, axes, n_samples) array
 cs_iters = 5        # Number of Iterations for Compressive Sensing
+slack = False       # Use slack variable in Compressive Sensing
 
 "Internal Parameters"
 magnetometers = 3
@@ -85,12 +86,16 @@ def clean(B, triaxial = True):
 def processData(A, b, n_clusters, data):
     "Define cvxpy parameters and variables for optimization problem" 
     x = cp.Variable(shape = n_clusters, complex=True)
+    z = cp.Variable(shape = n_clusters, nonneg=True)
     
     weights = np.ones(n_clusters)/n_clusters; 
     w = cp.Parameter(shape = n_clusters, value = weights, nonneg=True)
     
     "Define constraints as Dantzig Selector and optional boom constraint"
     constraints = [cp.norm(A.T@(A@x - b), 'inf') <= 0.01]
+    if(slack):
+        constraints = [z[0] == 0, cp.norm(A.T @ (A @ x + z - b), 'inf') <= 0.01]
+        
     if(boom):
         constraints.append(cp.abs(x[0]) <= cp.abs(b[boom]))
     
