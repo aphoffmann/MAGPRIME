@@ -91,9 +91,6 @@ def processData(A, b, n_clusters, data):
     
     "Define constraints as Dantzig Selector and optional boom constraint"
     constraints = [cp.norm(A.T@(A@x - b), 'inf') <= 0.01]
-
-    if(boom):
-        constraints.append(cp.abs(x[0]) <= cp.abs(b[boom]))
     
     "Define objective function as weighted L1 norm"
     objective = cp.Minimize(cp.sum(w.T@cp.abs(x)))
@@ -130,6 +127,10 @@ def processData(A, b, n_clusters, data):
             "Update and clip ambient field weight"
             w.value[0] = w.value[0] + .1*(x_ratio - w.value[0])
             w.value[0]  = np.clip(w.value[0], .001, 1000)
+
+    "Check if boom constraint is violated"
+    if(boom and np.abs(x.value[0]) > np.abs(b[boom])):
+        x.value[0] = b[boom]
 
     return x.value
      
