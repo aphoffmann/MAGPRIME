@@ -116,7 +116,7 @@ def processData(A, b, n_clusters, data):
             problem.solve(solver=cp.ECOS, warm_start=True)
         except:
             x.value = np.zeros(n_clusters)
-            if(boom): x.value[0] = b[boom]
+            if(boom): x.value[0] = b.value[boom]
             break
             string = f"ECOS Solver Failed\nASSP: {ASSP}\nX: {x.value}\nW: {w.value}\nB: {b.value}\nA: {A.value}\nRatio: {x_ratio}"
             raise Exception(string)
@@ -129,8 +129,8 @@ def processData(A, b, n_clusters, data):
             "Calculate signal to noise ratio"
             if(x.value is None):
                 x.value = np.zeros(n_clusters)
-                if(boom): x.value[0] = b[boom]
-                
+                if(boom): x.value[0] = b.value[boom]
+
             x_hat = np.abs(x.value) 
             x_ratio = np.sum(x_hat[1:])/( x_hat[0]+ 0.001)
             
