@@ -45,7 +45,7 @@ fs = 1              # Sampling Frequency
 weight = 1          # Weight for Compressive Sensing
 boom = None         # Index of boom magnetometer in (n_sensors, axes, n_samples) array
 cs_iters = 5        # Number of Iterations for Compressive Sensing
-slack = False       # Use slack variable in Compressive Sensing
+slack = True       # Use slack variable in Compressive Sensing
 
 "Internal Parameters"
 magnetometers = 3
@@ -119,6 +119,7 @@ def processData(A, b, n_clusters, data):
         try:
             problem.solve(solver=cp.ECOS, warm_start=True)
         except:
+            break
             string = f"ECOS Solver Failed\nASSP: {ASSP}\nX: {x.value}\nW: {w.value}\nB: {b.value}\nA: {A.value}\nRatio: {x_ratio}"
             raise Exception(string)
             
@@ -128,11 +129,6 @@ def processData(A, b, n_clusters, data):
             i+=1
         else:
             "Calculate signal to noise ratio"
-            if(x.value is None): 
-                x.value = np.zeros(n_clusters)
-                if(boom): x.value[0] = b.value[boom]
-                break
-
             x_hat = np.abs(x.value) 
             x_ratio = np.sum(x_hat[1:])/( x_hat[0]+ 0.0001)
             
