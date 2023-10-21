@@ -45,7 +45,6 @@ fs = 1              # Sampling Frequency
 weight = 1          # Weight for Compressive Sensing
 boom = None         # Index of boom magnetometer in (n_sensors, axes, n_samples) array
 cs_iters = 5        # Number of Iterations for Compressive Sensing
-slack = True       # Use slack variable in Compressive Sensing
 
 "Internal Parameters"
 magnetometers = 3
@@ -86,16 +85,13 @@ def clean(B, triaxial = True):
 def processData(A, b, n_clusters, data):
     "Define cvxpy parameters and variables for optimization problem" 
     x = cp.Variable(shape = n_clusters, complex=True)
-    z = cp.Variable(shape = n_clusters, nonneg=True)
     
     weights = np.ones(n_clusters)/n_clusters; 
     w = cp.Parameter(shape = n_clusters, value = weights, nonneg=True)
     
     "Define constraints as Dantzig Selector and optional boom constraint"
     constraints = [cp.norm(A.T@(A@x - b), 'inf') <= 0.01]
-    if(slack):
-        constraints = [z[0] == 0, cp.norm(A.T @ (A @ x + z - b), 'inf') <= 0.01]
-        
+
     if(boom):
         constraints.append(cp.abs(x[0]) <= cp.abs(b[boom]))
     
@@ -119,6 +115,8 @@ def processData(A, b, n_clusters, data):
         try:
             problem.solve(solver=cp.ECOS, warm_start=True)
         except:
+            x.value = np.zeros(n_clusters)
+            if(boom): x.value[0] = b[boom]
             break
             string = f"ECOS Solver Failed\nASSP: {ASSP}\nX: {x.value}\nW: {w.value}\nB: {b.value}\nA: {A.value}\nRatio: {x_ratio}"
             raise Exception(string)
@@ -130,11 +128,11 @@ def processData(A, b, n_clusters, data):
         else:
             "Calculate signal to noise ratio"
             x_hat = np.abs(x.value) 
-            x_ratio = np.sum(x_hat[1:])/( x_hat[0]+ 0.0001)
+            x_ratio = np.sum(x_hat[1:])/( x_hat[0]+ 0.001)
             
             "Update and clip ambient field weight"
             w.value[0] = w.value[0] + .1*(x_ratio - w.value[0])
-            w.value[0]  = np.clip(w.value[0], .001, 10000)
+            w.value[0]  = np.clip(w.value[0], .001, 1000)
 
     return x.value
      
