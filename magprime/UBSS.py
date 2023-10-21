@@ -127,6 +127,10 @@ def processData(A, b, n_clusters, data):
             i+=1
         else:
             "Calculate signal to noise ratio"
+            if(x.value is None):
+                x.value = np.zeros(n_clusters)
+                if(boom): x.value[0] = b[boom]
+                
             x_hat = np.abs(x.value) 
             x_ratio = np.sum(x_hat[1:])/( x_hat[0]+ 0.001)
             
