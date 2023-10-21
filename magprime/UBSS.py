@@ -129,8 +129,8 @@ def processData(A, b, n_clusters, data):
             w.value[0]  = np.clip(w.value[0], .001, 1000)
 
     "Check if boom constraint is violated"
-    if(boom and np.abs(x.value[0]) > np.abs(b[boom])):
-        x.value[0] = b[boom]
+    if(boom and cp.abs(x.value[0]) > cp.abs(b[boom])):
+        x.value[0] = b.value[boom]
 
     return x.value
      
