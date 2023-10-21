@@ -302,14 +302,14 @@ def run():
 
         "UBSS"
         UBSS.boom = 1
-        UBSS.sigma = 2
+        UBSS.sigma = 1
         UBSS.lambda_ = 2
         UBSS.fs = sampleRate
-        UBSS.bpo = 10
+        UBSS.bpo = 2
         try:
             B_ubss = UBSS.clean(np.copy(B))
         except:
-            UBSS.cs_iters = 1
+            UBSS.slack = True
             B_ubss = UBSS.clean(np.copy(B))
             
         rmse_ubss = np.sqrt(((swarm.T-B_ubss.T)**2).mean(axis=0))

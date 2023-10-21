@@ -119,35 +119,17 @@ def processData(A, b, n_clusters, data):
         try:
             problem.solve(solver=cp.ECOS, warm_start=True)
         except:
-            x.value = np.zeros(n_clusters); 
-            if(boom): x.value = b.value[boom]
-            break
             string = f"ECOS Solver Failed\nASSP: {ASSP}\nX: {x.value}\nW: {w.value}\nB: {b.value}\nA: {A.value}\nRatio: {x_ratio}"
             raise Exception(string)
             
-        if(problem.status != 'optimal'):
-            print(x.value)
-            print(problem.status)
         if(ASSP): 
             "Make W[0] Smaller"
             w = cp.inv_pos(cp.abs(x) + 0.01)
             i+=1
         else:
-            "Find estimated signal to noise ratio"
-            if(np.mean(np.abs(b.value)) < sigma): i+=1
-            
-            try:
-                x_hat = np.abs(x.value); 
-            except:
-                print(x.value)
-                print(problem.status)
-                print(problem.value)
-                print(problem.solver_stats)
-                print(problem.solver_stats.solve_time)
-                print(problem.solver_stats.num_iters)
-                print(problem.solver_stats.setup_time)
-                print(problem.solver_stats.num_eq_constr)
-            
+            "Calculate signal to noise ratio"
+            if(problem.status == 'optimal'): break
+            x_hat = np.abs(x.value) 
             x_ratio = np.sum(x_hat[1:])/( x_hat[0]+ 0.0001)
             
             "Update and clip ambient field weight"
