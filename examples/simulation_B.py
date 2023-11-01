@@ -47,7 +47,7 @@ def noiseReactionWheel(fs, N, base_freq, seed):
 
 def noiseMichibiki():
     "Import the magnetometer data from the file"
-    qzs_1 = np.loadtxt(r"michibiki.dat", dtype=np.float, usecols=(0,4,5,6,7,8,9))
+    qzs_1 = np.loadtxt(r"examples\SPACE_DATA\michibiki.dat", dtype=np.float, usecols=(0,4,5,6,7,8,9))
     B_qzs = qzs_1.T
 
     "Subtract the bias from the magnetometer data"
@@ -175,16 +175,16 @@ def run():
     signals = np.zeros((5, samples.shape[0]))
 
     "Import ambient magnetic field signal."
-    df=pd.read_csv('Swarm_MAGA_HR_20150317_0900.csv', sep=',',header=None)
+    df=pd.read_csv('examples\SPACE_DATA\Swarm_MAGA_HR_20150317_0900.csv', sep=',',header=None)
     r = df[10]
     swarm = np.array([np.fromstring(r[i][1:-1], dtype=float, sep=' ') for i in range(1, r.shape[0])]).T[:,160000:160000+N]
 
     "Import Michibiki Data"
     michibiki = noiseMichibiki()
 
-    if os.path.exists("magprime_results_B.csv"):
+    if os.path.exists("magprime_results_B_nodetrend.csv"):
         # Read the existing CSV file and get the last seed value
-        results = pd.read_csv("magprime_results_B.csv")
+        results = pd.read_csv("magprime_results_B_nodetrend.csv")
         last_seed = results["seed"].iloc[-1]
     else:
         # Create an empty data frame with columns
@@ -215,17 +215,17 @@ def run():
         "Create Mixed Signals"
         cutoff_freq = 0.01; order = 4; nyquist = 0.5 * 50; normalized_cutoff = cutoff_freq / nyquist
         b, a = butter(order, normalized_cutoff, btype='low')
-        signals[1:] -= lfilter(b, a, signals[1:])
+        #signals[1:] -= lfilter(b, a, signals[1:])
         Bx = Kx @ signals
 
         signals[0] = swarm[1]
         signals[2] = (michibiki[1][n:n+5000]-np.mean(michibiki[1][n:n+5000]))/np.max(np.abs((michibiki[1][n:n+5000]-np.mean(michibiki[1][n:n+5000]))))
-        signals[1:] -= lfilter(b, a, signals[1:])
+        #signals[1:] -= lfilter(b, a, signals[1:])
         By = Ky @ signals
 
         signals[0] = swarm[2]
         signals[2] = (michibiki[2][n:n+5000]-np.mean(michibiki[2][n:n+5000]))/np.max(np.abs((michibiki[2][n:n+5000]-np.mean(michibiki[2][n:n+5000]))))
-        signals[1:] -= lfilter(b, a, signals[1:])
+        #signals[1:] -= lfilter(b, a, signals[1:])
         Bz = Kz @ signals
 
         
@@ -379,7 +379,7 @@ def run():
                                     "snr_b1": snr_b1,
                                     "snr_b2": snr_b2,
                                     "snr_b3": snr_b3}, ignore_index=True)
-        results.to_csv("magprime_results_B.csv", index=False) 
+        results.to_csv("magprime_results_B_nodetrend.csv", index=False) 
 
 
 if __name__ == "__main__":

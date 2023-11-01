@@ -112,7 +112,7 @@ def processData(A, b, n_clusters, data):
     "Iteratively solve the system" 
     for i in range(cs_iters):
         try:
-            problem.solve(solver=cp.SCS, warm_start=True)
+            problem.solve(warm_start=True)
         except:
             string = f"ECOS Solver Failed\nASSP: {ASSP}\nX: {x.value}\nW: {w.value}\nB: {b.value}\nA: {A.value}\nRatio: {x_ratio}\n status: {problem.status}"
             raise Exception(string)
