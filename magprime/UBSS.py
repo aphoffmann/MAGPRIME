@@ -114,10 +114,13 @@ def processData(A, b, n_clusters, data):
         try:
             problem.solve(warm_start=True)
         except:
+            if(problem.status == 'optimal'):
+                break
+            
             string = f"ECOS Solver Failed\nASSP: {ASSP}\nX: {x.value}\nW: {w.value}\nB: {b.value}\nA: {A.value}\nRatio: {x_ratio}\n status: {problem.status}"
             raise Exception(string)
-        if(problem.status == 'optimal'):
-            break
+        
+
 
         if(ASSP): 
             "Make W[0] Smaller"
