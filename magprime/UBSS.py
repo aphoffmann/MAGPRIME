@@ -114,26 +114,30 @@ def processData(A, b, n_clusters, data):
         try:
             problem.solve(warm_start=True)
         except:
-            if(problem.status == 'optimal'):
-                break
-            
-            string = f"ECOS Solver Failed\nASSP: {ASSP}\nX: {x.value}\nW: {w.value}\nB: {b.value}\nA: {A.value}\nRatio: {x_ratio}\n status: {problem.status}"
-            raise Exception(string)
-        
+            "Check if x is None"
+            if(x.value is None):
+                x.value = np.zeros(n_clusters)
+                x.value[0] = b.value[np.abs(b.value).argmin()]
 
+            #string = f"ECOS Solver Failed\nASSP: {ASSP}\nX: {x.value}\nW: {w.value}\nB: {b.value}\nA: {A.value}\nRatio: {x_ratio}\n status: {problem.status}"
+            #raise Exception(string)
+        
 
         if(ASSP): 
             "Make W[0] Smaller"
             w = cp.inv_pos(cp.abs(x) + 0.01)
             i+=1
         else:
+            "Check Optimal Convergence"
+            if(problem.status == 'optimal'): break
+
             "Calculate signal to noise ratio"
             x_hat = np.abs(x.value) 
-            x_ratio = np.sum(x_hat[1:])/( x_hat[0]+ 0.001)
+            x_ratio = np.sum(x_hat[1:])/( x_hat[0]+ 0.01)
             
             "Update and clip ambient field weight"
             w.value[0] = w.value[0] + .1*(x_ratio - w.value[0])
-            w.value[0]  = np.clip(w.value[0], .001, 1000)
+            w.value[0]  = np.clip(w.value[0], .01, 100)
 
     "Check if boom constraint is violated"
     if(boom and np.abs(x.value[0]) >= np.abs(b.value[boom])):

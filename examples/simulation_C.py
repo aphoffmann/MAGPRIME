@@ -47,7 +47,7 @@ def noiseReactionWheel(fs, N, base_freq, seed):
 
 def noiseMichibiki():
     "Import the magnetometer data from the file"
-    qzs_1 = np.loadtxt(r"michibiki.dat", dtype=np.float, usecols=(0,4,5,6,7,8,9))
+    qzs_1 = np.loadtxt(r"examples\SPACE_DATA\michibiki.dat", dtype=np.float, usecols=(0,4,5,6,7,8,9))
     B_qzs = qzs_1.T
 
     "Subtract the bias from the magnetometer data"
@@ -88,10 +88,10 @@ def createMixingMatrix(seed, axis = 0):
     s = [s1,s2,s3]
 
     "Create Sources"
-    d1 = magpy.current.Loop(current=10, diameter=100, orientation=st.Rotation.random(),  position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))
-    d2 = magpy.current.Loop(current=10, diameter=100, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))    
-    d3 = magpy.current.Loop(current=10, diameter=100, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))
-    d4 = magpy.current.Loop(current=10, diameter=100, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290))) 
+    d1 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(),  position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))
+    d2 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))    
+    d3 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))
+    d4 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290))) 
     src = [d1,d2,d3,d4]
     if False: plotNoiseFields(s,src)
 
@@ -175,16 +175,16 @@ def run():
     signals = np.zeros((5, samples.shape[0]))
 
     "Import ambient magnetic field signal."
-    df=pd.read_csv('Swarm_MAGA_HR_20150317_0900.csv', sep=',',header=None)
+    df=pd.read_csv('examples\SPACE_DATA\Swarm_MAGA_HR_20150317_0900.csv', sep=',',header=None)
     r = df[10]
     swarm = np.array([np.fromstring(r[i][1:-1], dtype=float, sep=' ') for i in range(1, r.shape[0])]).T[:,160000:160000+N]
 
     "Import Michibiki Data"
     michibiki = noiseMichibiki()
 
-    if os.path.exists("magprime_results_B.csv"):
+    if os.path.exists("magprime_results_C.csv"):
         # Read the existing CSV file and get the last seed value
-        results = pd.read_csv("magprime_results_B.csv")
+        results = pd.read_csv("magprime_results_C.csv")
         last_seed = results["seed"].iloc[-1]
     else:
         # Create an empty data frame with columns
@@ -213,19 +213,14 @@ def run():
         Kz = createMixingMatrix(i, 2)
 
         "Create Mixed Signals"
-        cutoff_freq = 0.01; order = 4; nyquist = 0.5 * 50; normalized_cutoff = cutoff_freq / nyquist
-        b, a = butter(order, normalized_cutoff, btype='low')
-        signals[1:] -= lfilter(b, a, signals[1:])
         Bx = Kx @ signals
 
         signals[0] = swarm[1]
         signals[2] = (michibiki[1][n:n+5000]-np.mean(michibiki[1][n:n+5000]))/np.max(np.abs((michibiki[1][n:n+5000]-np.mean(michibiki[1][n:n+5000]))))
-        signals[1:] -= lfilter(b, a, signals[1:])
         By = Ky @ signals
 
         signals[0] = swarm[2]
         signals[2] = (michibiki[2][n:n+5000]-np.mean(michibiki[2][n:n+5000]))/np.max(np.abs((michibiki[2][n:n+5000]-np.mean(michibiki[2][n:n+5000]))))
-        signals[1:] -= lfilter(b, a, signals[1:])
         Bz = Kz @ signals
 
         "Create B"
@@ -298,17 +293,12 @@ def run():
             snr_ream[j] = snr(swarm[j], B_ream[j])  
 
         "UBSS"
-        UBSS.boom = 1
-        UBSS.sigma = 2
+        UBSS.sigma = 1
         UBSS.lambda_ = 2
         UBSS.fs = sampleRate
-        UBSS.bpo = 10
-        try:
-            B_ubss = UBSS.clean(np.copy(B))
-        except:
-            UBSS.cs_iters = 1
-            B_ubss = UBSS.clean(np.copy(B))
-            
+        UBSS.bpo = 2
+        B_ubss = UBSS.clean(np.copy(B))
+
         rmse_ubss = np.sqrt(((swarm.T-B_ubss.T)**2).mean(axis=0))
         corr_ubss = np.zeros(3); snr_ubss = np.zeros(3)
         for j in range(3):
@@ -377,7 +367,7 @@ def run():
                                     "snr_b1": snr_b1,
                                     "snr_b2": snr_b2,
                                     "snr_b3": snr_b3}, ignore_index=True)
-        results.to_csv("magprime_results_B.csv", index=False) 
+        results.to_csv("magprime_results_C.csv", index=False) 
 
 
 if __name__ == "__main__":
