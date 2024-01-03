@@ -1,9 +1,11 @@
 import numpy as np
 import pandas as pd
+import pkg_resources
 
 def load_michibiki_data():
     "Import the magnetometer data from the file"
-    qzs_1 = np.loadtxt(r"SPACE_DATA\michibiki.dat", dtype=np.float, usecols=(0,4,5,6,7,8,9))
+    file_path = pkg_resources.resource_filename('magprime.utility.SPACE_DATA', 'michibiki.dat')
+    qzs_1 = np.loadtxt(file_path, dtype=np.float, usecols=(0, 4, 5, 6, 7, 8, 9))
     B_qzs = qzs_1.T
 
     "Subtract the bias from the magnetometer data"
@@ -22,7 +24,8 @@ def load_michibiki_data():
 
 def load_swarm_data(start = 160000, stop = 165000):
     "Import 50 Hz magnetometer residual data"
-    df=pd.read_csv('SPACE_DATA\Swarm_MAGA_HR_20150317_0900.csv', sep=',',header=None)
+    file_path = pkg_resources.resource_filename('magprime.utility.SPACE_DATA', 'Swarm_MAGA_HR_20150317_0900.csv')
+    df=pd.read_csv(file_path, sep=',',header=None)
     r = df[10]
     swarm = np.array([np.fromstring(r[i][1:-1], dtype=float, sep=' ') for i in range(1, r.shape[0])]).T[:,start:stop]
     return(swarm)
