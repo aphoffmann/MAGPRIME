@@ -31,12 +31,13 @@ DEPENDENCY_LINKS = [
 
 setup(
     name='magprime',
-    version='0.82',
+    version='0.83',
     description="Magnetic signal PRocessing, Interference Mitigation, and Enhancement (MAGPRIME)",
     author="Alex Paul Hoffmann",
     author_email='aphoff@umich.edu',
     url='https://github.com/aphoffmann/MAGPRIME',
     packages=find_packages(),
+    package_data={'magprime': ['*.dat', '*.ipynb'],},
     install_requires=REQUIREMENTS,
     dependency_links=DEPENDENCY_LINKS
 )
