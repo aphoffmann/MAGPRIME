@@ -14,61 +14,6 @@ import magpylib as magpy
 import scipy.spatial.transform as st
 
 
-def signalPlot():
-    i = 6
-    n = random.randint(0, michibiki.shape[-1]-5000)
-
-    # Create Source Signals
-    signals = np.zeros((5, N))  # Assuming N is defined as the number of samples
-    signals[0] = swarm[0]
-    signals[1] = noiseReactionWheel(sampleRate, N, np.random.randint(4, sampleRate//2), i) # Reaction Wheels
-    signals[2] = (michibiki[0][n:n+5000] - np.mean(michibiki[0][n:n+5000])) / np.max(np.abs((michibiki[0][n:n+5000] - np.mean(michibiki[0][n:n+5000])))) # Michibiki
-    signals[3] = noiseArcjet(N, i) # Arcjet
-    signals[4] = signal.sawtooth(2 * np.pi * 3 * samples) * randomizeSignals(N, random.randint(0, 100000))
-
-    # Create Mixing Matrices
-    Kx = createMixingMatrix(i, 0)
-    Ky = createMixingMatrix(i, 1)
-    Kz = createMixingMatrix(i, 2)
-
-    # Create Mixed Signals
-    Bx = Kx @ signals
-    signals[0] = swarm[1]
-    signals[2] = (michibiki[1][n:n+5000] - np.mean(michibiki[1][n:n+5000])) / np.max(np.abs((michibiki[1][n:n+5000] - np.mean(michibiki[1][n:n+5000]))))
-    By = Ky @ signals
-
-    signals[0] = swarm[2]
-    signals[2] = (michibiki[2][n:n+5000] - np.mean(michibiki[2][n:n+5000])) / np.max(np.abs((michibiki[2][n:n+5000] - np.mean(michibiki[2][n:n+5000]))))
-    Bz = Kz @ signals
-
-    # Seaborn styling
-    sns.set(style="whitegrid")
-
-    fig, axs = plt.subplots(3, 1, figsize=(14, 7))
-    axs[0].set_title("Mixed Signals ", fontsize=16)
-    B = np.vstack((Bx[0], By[0], Bz[0]))
-
-    for i in range(3):
-        sns.lineplot(x=samples, y=B[i], ax=axs[i], label="Noisy signal", color="b")
-        sns.lineplot(x=samples, y=swarm[i], ax=axs[i], label='True Signal', color="r")
-        axs[i].set_ylabel('nT', fontsize=12)
-        axs[i].tick_params(labelsize=8)
-        if i != B.shape[0] - 1:
-            axs[i].set_xticklabels([])
-        axs[i].set_xlabel('seconds', fontsize=12)
-        legend_left = axs[i].legend(loc='upper left')
-        axs[i].add_artist(legend_left)
-
-    # Adding legends on the right
-    axs[0].legend(["(a)"], loc='upper right', handlelength=0, handletextpad=0, fancybox=True)
-    axs[1].legend(["(b)"], loc='upper right', handlelength=0, handletextpad=0, fancybox=True)
-    axs[2].legend(["(c)"], loc='upper right', handlelength=0, handletextpad=0, fancybox=True)
-    axs[0].set_xticks([]); axs[0].set_xlabel("")
-    axs[1].set_xticks([]); axs[1].set_xlabel("")
-
-    plt.tight_layout()
-    plt.show()
-
 def polarPlot():
     df = pd.read_csv("magprime_results_A.csv")
     ica_rmse = np.mean(np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['rmse_ica'].to_numpy()]), axis=0)
