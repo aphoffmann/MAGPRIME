@@ -1,5 +1,5 @@
 # Purpose: Setup file for MAGPRIME package
-from setuptools import setup
+from setuptools import setup, find_packages
 
 REQUIREMENTS = [
     'pandas',
@@ -36,7 +36,7 @@ setup(
     author="Alex Paul Hoffmann",
     author_email='aphoff@umich.edu',
     url='https://github.com/aphoffmann/MAGPRIME',
-    packages=['magprime'],
+    packages=find_packages(),
     install_requires=REQUIREMENTS,
     dependency_links=DEPENDENCY_LINKS
 )
