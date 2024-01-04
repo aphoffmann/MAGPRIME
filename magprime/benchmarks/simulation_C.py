@@ -16,7 +16,7 @@ import os
 from scipy.signal import butter, lfilter
 
 "Noise Reduction Algorithms"
-from magprime import ICA, MSSA, NESS, PiCoG, SHEINKER, REAM, UBSS, WAICUP
+from magprime.algorithms import ICA, MSSA, NESS, PiCoG, SHEINKER, REAM, UBSS, WAICUP
 
 "Parameters"
 alpha_couplings = None # Coupling matrix between the sensors and sources for NESS

@@ -1,1 +1,1 @@
-from .data_loader import load_michibiki_data
+from .data_loader import load_michibiki_data, load_swarm_data
