@@ -44,17 +44,23 @@ To use MAGPRIME, simply import the desired noise removal algorithm and apply it 
 
 
 ```
-from magprime import ICA, MSSA, NESS, PiCoG, SHEINKER, REAM, UBSS, WAICUP
+from magprime.algorithms import WAICUP
+from magprime import utility
 
 # Load the magnetometer data in the shape of b: (n_sensors, n_axes, n_samples)
-b = load_data_function()
+B = utility.load_michibiki_data()
 
-# Set any additional algorithm-specific arguments
-UBSS.sigma = 10 # nT
-UBSS.fs = 50 # Hz
 
-# Clean the signals using the WAIC-UP algorithm
-cleaned_signals = UBSS.clean(b) # returns (n_axes, n_samples)
+# Detrend the data
+WAICUP.uf = 360     # n_samples to use in uniform filter
+WAICUP.detrend = True
+
+# Algorithm Parameters
+WAICUP.fs = 1       # Sample rate
+WAICUP.dj = 1/12    # Wavelet Spacing
+
+# Clean the data and store it in B_waicup
+B_waicup = WAICUP.clean(B, triaxial = True) # returns (n_axes, n_samples)
 
 # Perform further analysis or visualization with the cleaned_signals
 # ...
