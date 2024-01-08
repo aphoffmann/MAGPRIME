@@ -48,7 +48,7 @@ from magprime.algorithms import WAICUP
 from magprime import utility
 
 # Load the magnetometer data in the shape of b: (n_sensors, n_axes, n_samples)
-utility.load_michibiki_data()
+B = utility.load_michibiki_data()
 
 
 # Detrend the data
