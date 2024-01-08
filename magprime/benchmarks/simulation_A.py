@@ -19,7 +19,7 @@ from scipy.signal import butter, lfilter
 import scaleogram as scg
 
 "Noise Reduction Algorithms"
-from magprime import ICA, MSSA, NESS, PiCoG, SHEINKER, REAM, UBSS, WAICUP
+from magprime.algorithms import ICA, MSSA, NESS, PiCoG, SHEINKER, REAM, UBSS, WAICUP
 
 "Parameters"
 alpha_couplings = None # Coupling matrix between the sensors and sources for NESS
@@ -89,10 +89,10 @@ def createMixingMatrix(seed, axis = 0):
     s = [s1,s2]
     
     "Create Sources"
-    d1 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(),  position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))
-    d2 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))    
-    d3 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))
-    d4 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290))) 
+    d1 = magpy.current.Loop(current=150, diameter=10, orientation=st.Rotation.random(),  position=(random.randint(-35, 35), random.randint(-35, 35), random.randint(15, 285)))
+    d2 = magpy.current.Loop(current=150, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-35, 35), random.randint(-35, 35), random.randint(15, 285)))    
+    d3 = magpy.current.Loop(current=150, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-35, 35), random.randint(-35, 35), random.randint(15, 285)))
+    d4 = magpy.current.Loop(current=150, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-35, 35), random.randint(-35, 35), random.randint(15, 285)))  
     src = [d1,d2,d3,d4]
 
     if False: plotNoiseFields([s1,s2],src)
