@@ -306,21 +306,22 @@ def demixNSGT(sig):
  
 def updateCentroids(newCentroids, learnRate = 0.1):
     "Check if Clusters are in the global mixing matrix"
-    for centroid in newCentroids.T:
-        
-        newC = True
-        for cluster in clusterCentroids:
-            a = np.real(clusterCentroids[cluster]) / np.linalg.norm(clusterCentroids[cluster]);
-            b = np.real(centroid)/np.linalg.norm(centroid)
-            angle = np.arccos(np.clip(np.dot(a, b), -1.0, 1.0))
-            if(angle < np.deg2rad(sspTol)):
-                if(cluster != 0):
-                    clusterCentroids[cluster] = clusterCentroids[cluster] + learnRate * (centroid - clusterCentroids[cluster])
-                newC = False
-        
-        "Add New Cluster"        
-        if(newC):
-            clusterCentroids[len(clusterCentroids)] = centroid
+    if newCentroids.T.size > 0:
+        for centroid in newCentroids.T:
+            
+            newC = True
+            for cluster in clusterCentroids:
+                a = np.real(clusterCentroids[cluster]) / np.linalg.norm(clusterCentroids[cluster]);
+                b = np.real(centroid)/np.linalg.norm(centroid)
+                angle = np.arccos(np.clip(np.dot(a, b), -1.0, 1.0))
+                if(angle < np.deg2rad(sspTol)):
+                    if(cluster != 0):
+                        clusterCentroids[cluster] = clusterCentroids[cluster] + learnRate * (centroid - clusterCentroids[cluster])
+                    newC = False
+            
+            "Add New Cluster"        
+            if(newC):
+                clusterCentroids[len(clusterCentroids)] = centroid
             
     return(np.array([clusterCentroids[i] for i in clusterCentroids.keys()]))
     
