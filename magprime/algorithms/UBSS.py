@@ -306,7 +306,7 @@ def demixNSGT(sig):
  
 def updateCentroids(newCentroids, learnRate = 0.1):
     "Check if Clusters are in the global mixing matrix"
-    if newCentroids.T.size > 0:
+    if newCentroids.T.size > 0: ## Check if no new centroids
         for centroid in newCentroids.T:
             
             newC = True
