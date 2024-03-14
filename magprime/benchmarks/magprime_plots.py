@@ -183,9 +183,8 @@ def plotCubeSats():
     plt.show()
 
 def pdfSubplots():
-    # Load your data
     df = pd.read_csv("magprime_results_A.csv")
-
+ 
     # Parse data arrays
     ica_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_ica'].to_numpy()])
     mssa_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_mssa'].to_numpy()])
@@ -197,36 +196,35 @@ def pdfSubplots():
     waicup_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_waicup'].to_numpy()])
     b1_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_b1'].to_numpy()])
     b2_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_b2'].to_numpy()])
-
-    fig, axes = plt.subplots(4, 3, figsize=(15, 10), sharex=False, sharey=True)
-    fig.suptitle("Algorithms SNR Distributions", fontsize=16, y=1.02)
+    
+    fig, axes = plt.subplots(5, 2, figsize=(15, 10), sharex=True, sharey=True)
+    fig.suptitle("Distributions of SNR in Gradiometry Configuration", fontsize=16, y=1.02)
 
     # List of algorithm labels
-    algorithms = ["ICA", "MSSA", "NESS", "PiCoG", "Sheinker", "REAM", "UBSS", "WAICUP", "BUS", "BOOM"]
+    algorithms = ["ICA", "MSSA", "NESS", "PiCoG", "Sheinker", "REAM",  "WAICUP","UBSS", "BUS", "BOOM"]
 
     # List of data arrays
-    data_arrays = [ica_snr, mssa_snr, ness_snr, picog_snr, sheinker_snr, ream_snr, ubss_snr, waicup_snr, b1_snr, b2_snr]
-    
+    data_arrays = [ica_snr, mssa_snr, ness_snr, picog_snr, sheinker_snr, ream_snr,  waicup_snr,ubss_snr, b1_snr, b2_snr]
+
     # Colors for each subplot
     linestyles = ['dashed', 'solid', 'dotted']
     colors = sns.color_palette("husl", len(algorithms))
     axs = ["X","Y","Z"]
     # Plot each algorithm's SNR distribution in a separate subplot
     for i, (data, algorithm) in enumerate(zip(data_arrays, algorithms)):
-        row, col = divmod(i, 3)
+        row, col = divmod(i, 2)
         for axis in range(3):
             sns.distplot(data[:, axis], hist=False, rug=False, color=colors[i], label=f"{axs[axis]}-Axis", ax=axes[row, col], kde_kws={'linestyle': linestyles[axis]})
         axes[row, col].set_xlabel("SNR (dB)", fontsize=12)
         axes[row, col].set_ylabel("Probability density", fontsize=12)
-        axes[row, col].set_title(f"({algorithms[i]})", fontsize=14, fontweight='bold')
+        axes[row, col].text(0.5, 0.8, f"{algorithm}", fontsize=14, fontweight='bold', transform=axes[row, col].transAxes, ha="center")
         axes[row, col].legend()
 
-    axes[3,1].axis('off'); axes[3,2].axis('off')
+
     axes[2, 0].xaxis.label.set_visible(False)
     axes[1, 0].xaxis.label.set_visible(False) 
     axes[0, 0].xaxis.label.set_visible(False)
     axes[1, 1].xaxis.label.set_visible(False)   
-    axes[1, 2].xaxis.label.set_visible(False)    
 
     # Adjust layout
     plt.tight_layout()
