@@ -19,6 +19,7 @@ from sklearn.decomposition import FastICA
 import numpy as np
 from scipy import stats
 from scipy.ndimage import uniform_filter1d
+from sklearn.metrics.pairwise import cosine_similarity
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -94,22 +95,32 @@ def cleanTriAxis(B):
     S_ = S_.T
     
     "Find Natural IC through lowest correlation with the difference"
-    step = ica.mixing_.shape[0]//3
-    diffs = np.abs([ica.mixing_[i] - ica.mixing_[i-1] for i in range(step-1,ica.mixing_.shape[0],step)])
-    args = np.argmin(diffs, axis = 1)
-    gain = np.abs([(ica.mixing_[i] + ica.mixing_[i-1])/2 for i in range(step-1,ica.mixing_.shape[0],step)])
+    expected_mixing = np.ones(n_sensors)
+    gain = np.ones(n_axes)
+    args = []
+    step = n_sensors
+    for axis in range(n_axes):
+        axis_mixing = ica.mixing_[axis*step:(axis+1)*step]
+        cosine_similarities = [np.dot(col, expected_mixing) / (np.linalg.norm(col) * np.linalg.norm(expected_mixing)) for col in axis_mixing.T]
     
+        args.append(np.argmax(np.abs(cosine_similarities)))
+        gain[axis] = np.mean(axis_mixing.T[np.argmax(np.abs(cosine_similarities))])
+
+    gain = list(gain)
+
+    # Todo find gain through averaging the amb field vector using args
+        
     "Select IC's with lowest correlation with the difference and reapply trend"
     recovered_signal = np.zeros((3, sig.shape[-1]))
 
     if(detrend):
-        recovered_signal[0] = S_[args[0]]*gain[0][args[0]] + np.mean(trend[:step], axis = 0)
-        recovered_signal[1] = S_[args[1]]*gain[1][args[1]] + np.mean(trend[step:2*step], axis = 0) 
-        recovered_signal[2] = S_[args[2]]*gain[2][args[2]] + np.mean(trend[2*step:3*step], axis = 0) 
+        recovered_signal[0] = S_[args[0]]*gain[0] + np.mean(trend[:step], axis = 0)
+        recovered_signal[1] = S_[args[1]]*gain[1] + np.mean(trend[step:2*step], axis = 0) 
+        recovered_signal[2] = S_[args[2]]*gain[2] + np.mean(trend[2*step:3*step], axis = 0) 
     else:
-        recovered_signal[0] = S_[args[0]]*gain[0][args[0]]
-        recovered_signal[1] = S_[args[1]]*gain[1][args[1]] 
-        recovered_signal[2] = S_[args[2]]*gain[2][args[2]]
+        recovered_signal[0] = S_[args[0]]*gain[0]
+        recovered_signal[1] = S_[args[1]]*gain[1] 
+        recovered_signal[2] = S_[args[2]]*gain[2]
 
 
     return(recovered_signal)
