@@ -1,0 +1,11 @@
+def interpolate(B, gaps, triaxial = True):
+    """
+    Perform interpolation through Multichannel Singular Spectrum Analysis (MSSA)
+    Input:
+        B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
+        gaps: binary mask of gaps in the data (n_sensors, n_samples)
+    Output:
+        result: reconstructed ambient field without gaps (n_sensors, axes, n_samples)
+    """
+
+    return
