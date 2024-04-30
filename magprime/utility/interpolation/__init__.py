@@ -1,1 +1,1 @@
-
+from .mssa import interpolate
