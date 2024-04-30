@@ -1,1 +1,1 @@
-from . import *
+from .mssa import mssa
