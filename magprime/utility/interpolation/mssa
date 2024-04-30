@@ -18,6 +18,8 @@ def interpolate(B,gaps, triaxial = False):
     else:
         result = monoaxial_interpolation(B, gaps)
 
+    return result
+    
 def monoaxial_interpolation(B, gaps):
     """
     Perform interpolation through Singular Spectrum Analysis (SSA)
