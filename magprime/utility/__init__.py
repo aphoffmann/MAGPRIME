@@ -1,2 +1,2 @@
 from .data_loader import load_michibiki_data, load_swarm_data
-from .interpolation import mssa
+from . import interpolation
