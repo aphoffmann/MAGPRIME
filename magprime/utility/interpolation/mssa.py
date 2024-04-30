@@ -54,14 +54,18 @@ def monoaxial_interpolation(B, gaps):
 
         # Perform forward M-SSA forecast on the data
         K = min(K, pre_gap_data.shape[1]//2)
-        mssa = MSSA(window_size=K)
+        mssa = MSSA(n_components = "parallel_analysis",
+                    pa_percentile_threshold = 50,
+                    window_size=K)
         mssa.fit(pre_gap_data.T)
         fwd_fc = mssa.forecast(timepoints_out = gap_length)
 
         # Perform backward M-SSA forecast on the data
         K = min(K, post_gap_data.shape[1]//2)
         post_gap_data = np.flip(post_gap_data, axis=1)
-        mssa = MSSA(window_size=K)
+        mssa = MSSA(n_components = "parallel_analysis",
+                    pa_percentile_threshold = 50,
+                    window_size=K)
         mssa.fit(post_gap_data.T)
         bwd_fc = mssa.forecast(timepoints_out = gap_length)
 
