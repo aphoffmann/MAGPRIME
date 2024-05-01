@@ -39,24 +39,20 @@ def monoaxial_interpolation(B, gaps):
     n_samples = B.shape[1]
     result = np.copy(B)
 
-    # Find Gap indices
-    gap_indices = np.where(gaps == 0)[0]
-    if gap_indices.size == 0:
-        return result  # No gaps to fill
-
-    gap_starts = np.hstack(([0], np.where(np.diff(gap_indices) != 1)[0] + 1))
-    gap_ends = np.hstack((np.where(np.diff(gap_indices) != 1)[0], [len(gap_indices) - 1]))
-    full_gaps = [(gap_indices[start], gap_indices[end]) for start, end in zip(gap_starts, gap_ends)]
+    # Find Gap starting and ending indices and window validity
+    gap_info = find_gaps(gaps)
     
 
     # Calculate window size L based on the size of the data and the gap
-    for (gap_start, gap_end) in full_gaps:
+    for gap_start, gap_end, gap_length, validity in gap_info:
         gap_length = gap_end - gap_start + 1
         L = 2*(gap_end-gap_start)
 
         # Get segments surrounding the gap for forward and backward prediction
-        pre_gap_data = B[:, :gap_start]
-        post_gap_data = B[:, gap_end + 1:]
+        window_start = max(0, gap_start - L)
+        window_end = min(n_samples - 1, gap_end + L)
+        pre_gap_data = B[:, window_start:gap_start]
+        post_gap_data = B[:, gap_end + 1:window_end + 1]
 
         # Perform forward M-SSA forecast on the data
         L = int(min(L, pre_gap_data.shape[1]//2))
@@ -107,3 +103,32 @@ def fill_gap_with_exponential_weights(fwd_fc, bwd_fc):
 
     X_filled = w_fwd_normalized * fwd_fc + w_bwd_normalized * bwd_fc
     return X_filled
+
+
+def find_gaps(gaps):
+    # Find Gap starting and ending indices
+    gap_indices = np.where(gaps == 0)[0]
+    if gap_indices.size == 0:
+        return []  # No gaps to fill
+
+    gap_starts = np.hstack(([0], np.where(np.diff(gap_indices) != 1)[0] + 1))
+    gap_ends = np.hstack((np.where(np.diff(gap_indices) != 1)[0], [len(gap_indices) - 1]))
+    full_gaps = [(gap_indices[start], gap_indices[end]) for start, end in zip(gap_starts, gap_ends)]
+
+    # Create a list to store gap info with window analysis
+    gap_info = []
+
+    for start, end in full_gaps:
+        gap_length = end - start + 1
+        window_radius = 2 * gap_length
+        window_start = max(0, start - window_radius)
+        window_end = min(len(gaps) - 1, end + window_radius)
+
+        # Count valid data points in the window
+        window_data_count = np.sum(gaps[window_start:start] == 0) + np.sum(gaps[end + 1:window_end + 1] == 0)
+
+        gap_info.append((start, end, gap_length, window_data_count))
+
+    # Rank gaps - example by smallest gap first, then by maximum surrounding data
+    gap_info.sort(key=lambda x: (x[2], -x[3]))
+    return(gap_info)
