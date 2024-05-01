@@ -1,6 +1,13 @@
 import numpy as np
 from pymssa import MSSA 
 
+"MSSA Parameters"
+n_components = "variance_threshold"
+variance_explained_threshold = 0.95
+pa_percentile_threshold = None
+svd_method = 'randomized'
+verbose = False
+
 def interpolate(B,gaps, triaxial = False):
     """
     Perform interpolation through Singular Spectrum Analysis (SSA)
@@ -45,27 +52,32 @@ def monoaxial_interpolation(B, gaps):
     # Calculate window size L based on the size of the data and the gap
     for (gap_start, gap_end) in full_gaps:
         gap_length = gap_end - gap_start + 1
-        K = 2*(gap_end-gap_start)
-        L = n_samples - K + 1
+        L = 2*(gap_end-gap_start)
 
         # Get segments surrounding the gap for forward and backward prediction
         pre_gap_data = B[:, :gap_start]
         post_gap_data = B[:, gap_end + 1:]
 
         # Perform forward M-SSA forecast on the data
-        K = int(min(K, pre_gap_data.shape[1]//2))
-        mssa = MSSA(n_components = "parallel_analysis",
-                    pa_percentile_threshold = 50,
-                    window_size=K)
+        L = int(min(L, pre_gap_data.shape[1]//2))
+        mssa = MSSA(n_components = n_components,
+                    variance_explained_threshold = variance_explained_threshold,
+                    pa_percentile_threshold = pa_percentile_threshold,
+                    svd_method = 'randomized',
+                    window_size=L,
+                    verbose = verbose)
         mssa.fit(pre_gap_data.T)
         fwd_fc = mssa.forecast(timepoints_out = gap_length)
 
         # Perform backward M-SSA forecast on the data
-        K = int(min(K, post_gap_data.shape[1]//2))
+        L = int(min(L, post_gap_data.shape[1]//2))
         post_gap_data = np.flip(post_gap_data, axis=1)
-        mssa = MSSA(n_components = "parallel_analysis",
-                    pa_percentile_threshold = 50,
-                    window_size=K)
+        mssa = MSSA(n_components = n_components,
+                    variance_explained_threshold = variance_explained_threshold,
+                    pa_percentile_threshold = pa_percentile_threshold,
+                    svd_method = 'randomized',
+                    window_size=L,
+                    verbose = verbose)
         mssa.fit(post_gap_data.T)
         bwd_fc = mssa.forecast(timepoints_out = gap_length)
 
