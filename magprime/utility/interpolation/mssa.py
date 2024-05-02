@@ -2,7 +2,7 @@ import numpy as np
 from pymssa import MSSA 
 
 "MSSA Parameters"
-n_components = "variance_threshold"
+n_components = "svht"
 variance_explained_threshold = 0.95
 pa_percentile_threshold = None
 svd_method = 'randomized'
@@ -45,14 +45,26 @@ def monoaxial_interpolation(B, gaps):
 
     # Calculate window size L based on the size of the data and the gap
     for gap_start, gap_end, gap_length, validity in gap_info:
-        gap_length = gap_end - gap_start + 1
-        L = 2*(gap_end-gap_start)
+        L = 2*gap_length
+        gaps[gap_start:gap_end+1] = 1
+        gap_info = find_gaps(gaps)
 
         # Get segments surrounding the gap for forward and backward prediction
         window_start = max(0, gap_start - L)
         window_end = min(n_samples - 1, gap_end + L)
         pre_gap_data = B[:, window_start:gap_start]
         post_gap_data = B[:, gap_end + 1:window_end + 1]
+
+        # If gap_length is less than 10, use linear interpolation
+        if gap_length < 10 or np.isnan(pre_gap_data).any() or np.isnan(post_gap_data).any():
+            # Linear interpolation
+            for sensor in range(B.shape[0]):
+                result[sensor, gap_start:gap_end+1] = np.interp(
+                                np.arange(gap_start, gap_end +1),
+                                np.array([gap_start-1,gap_end+1]),
+                                B[sensor, np.array([gap_start-1,gap_end+1])]
+                            )
+            continue
 
         # Perform forward M-SSA forecast on the data
         L = int(min(L, pre_gap_data.shape[1]//2))
@@ -125,10 +137,10 @@ def find_gaps(gaps):
         window_end = min(len(gaps) - 1, end + window_radius)
 
         # Count valid data points in the window
-        window_data_count = np.sum(gaps[window_start:start] == 0) + np.sum(gaps[end + 1:window_end + 1] == 0)
+        window_data_count = np.sum(gaps[window_start:start]) + np.sum(gaps[end + 1:window_end + 1])
 
-        gap_info.append((start, end, gap_length, window_data_count))
+        gap_info.append((start, end, gap_length, int(window_data_count//gap_length > 3)))
 
     # Rank gaps - example by smallest gap first, then by maximum surrounding data
-    gap_info.sort(key=lambda x: (x[2], -x[3]))
+    gap_info.sort(key=lambda x: (-x[3],x[2]))
     return(gap_info)
