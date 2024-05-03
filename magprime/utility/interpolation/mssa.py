@@ -1,12 +1,13 @@
 import numpy as np
 from pymssa import MSSA 
+from tqdm import tqdm
 
 "MSSA Parameters"
 n_components = "svht"
 variance_explained_threshold = 0.95
 pa_percentile_threshold = None
 svd_method = 'randomized'
-verbose = False
+verbose = True
 
 def interpolate(B,gaps, triaxial = False):
     """
@@ -44,7 +45,7 @@ def monoaxial_interpolation(B, gaps):
     
 
     # Calculate window size L based on the size of the data and the gap
-    for gap_start, gap_end, gap_length, validity in gap_info:
+    for gap_start, gap_end, gap_length, _ in tqdm(gap_info):
         L = 2*gap_length
         gaps[gap_start:gap_end+1] = 1
         gap_info = find_gaps(gaps)
@@ -52,17 +53,26 @@ def monoaxial_interpolation(B, gaps):
         # Get segments surrounding the gap for forward and backward prediction
         window_start = max(0, gap_start - L)
         window_end = min(n_samples - 1, gap_end + L)
-        pre_gap_data = B[:, window_start:gap_start]
-        post_gap_data = B[:, gap_end + 1:window_end + 1]
+        pre_gap_data = result[:, window_start:gap_start]
+        post_gap_data = result[:, gap_end + 1:window_end + 1]
+
+        # check if window touches the edge of the data
+        if(gap_end == n_samples - 1 or gap_start == 0):
+            result[:, gap_start:gap_end + 1] = 0
+            continue
+
+        # Check if gaps in pre_gap_data or post_gap_data
+        window_invalid = np.sum(1-gaps[window_start:gap_start]) + np.sum(1- gaps[gap_end + 1:window_end + 1])
+
 
         # If gap_length is less than 10, use linear interpolation
-        if gap_length < 10 or np.isnan(pre_gap_data).any() or np.isnan(post_gap_data).any():
+        if gap_length < 10 or window_invalid > 0:
             # Linear interpolation
-            for sensor in range(B.shape[0]):
+            for sensor in range(result.shape[0]):
                 result[sensor, gap_start:gap_end+1] = np.interp(
                                 np.arange(gap_start, gap_end +1),
                                 np.array([gap_start-1,gap_end+1]),
-                                B[sensor, np.array([gap_start-1,gap_end+1])]
+                                result[sensor, np.array([gap_start-1,gap_end+1])]
                             )
             continue
 
