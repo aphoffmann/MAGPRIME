@@ -43,7 +43,7 @@ def noiseReactionWheel(fs, N, base_freq, seed):
 
 def noiseMichibiki():
     "Import the magnetometer data from the file"
-    qzs_1 = np.loadtxt(r"examples\SPACE_DATA\michibiki.dat", dtype=np.float, usecols=(0,4,5,6,7,8,9))
+    qzs_1 = np.loadtxt(r"C:\Users\Alex\Documents\GitHub\MAGPRIME\magprime\utility\SPACE_DATA\michibiki.dat", dtype=np.float, usecols=(0,4,5,6,7,8,9))
     B_qzs = qzs_1.T
 
     "Subtract the bias from the magnetometer data"
@@ -195,7 +195,7 @@ def run():
     signals = np.zeros((5, samples.shape[0]))
 
     "Import ambient magnetic field signal."
-    df=pd.read_csv('examples\SPACE_DATA\Swarm_MAGA_HR_20150317_0900.csv', sep=',',header=None)
+    df=pd.read_csv(r'C:\Users\Alex\Documents\GitHub\MAGPRIME\magprime\utility\SPACE_DATA\Swarm_MAGA_HR_20150317_0900.csv', sep=',',header=None)
     r = df[10]
     swarm = np.array([np.fromstring(r[i][1:-1], dtype=float, sep=' ') for i in range(1, r.shape[0])]).T[:,160000:160000+N]
 
@@ -247,7 +247,7 @@ def run():
         gaps = create_gaps(N, i)
         B_gap = np.copy(B)
         B_gap[:, gaps == 0] = np.nan
-        B_interpolated = interpolation.mssa.interpolate(B_gap[:,0,:], gaps, triaxial=False)
+        B_interpolated = interpolation.mssa.interpolate(B_gap, gaps, triaxial=False)
         B_waicup_interp = WAICUP.clean(np.copy(B_interpolated), triaxial = False)
 
         rmse_interp = np.sqrt(((swarm[2]-B_waicup_interp)**2).mean(axis=0))
@@ -269,7 +269,7 @@ def run():
         gaps = create_gaps(N, i)
         B_gap = np.copy(B)
         B_gap[:, gaps == 0] = 0
-        B_waicup_zero = WAICUP.clean(np.copy(B_gap), triaxial = False)
+        B_zero_waicup = WAICUP.clean(np.copy(B_gap), triaxial = False)
 
         rmse_zero_interp = np.sqrt(((swarm[2]-B_zero_waicup)**2).mean(axis=0))
         corr_zero_interp = np.corrcoef(swarm[2], B_zero_waicup)[0,1]
@@ -287,27 +287,32 @@ def run():
         snr_b3 = snr(swarm[2], B[2])
 
         "Save all results to a csv file"
-        results = results.append({  "seed": i,
-                                    "rmse_ica": rmse_ica,
-                                    "rmse_mssa": rmse_mssa,
-                                    "rmse_ness": rmse_ness,
-                                    "rmse_picog": rmse_picog,
-                                    "rmse_sheinker": rmse_sheinker,
-                                    "rmse_ream": rmse_ream,
-                                    "rmse_ubss": rmse_ubss,
+        results = results.append({
+                                    "seed": i,
                                     "rmse_waicup": rmse_waicup,
+                                    "rmse_interp": rmse_interp,
+                                    "rmse_lin_interp": rmse_lin_interp,
+                                    "rmse_zero_interp": rmse_zero_interp,
                                     "rmse_b1": rmse_b1,
                                     "rmse_b2": rmse_b2,
                                     "rmse_b3": rmse_b3,
                                     "corr_waicup": corr_waicup,
+                                    "corr_interp": corr_interp,
+                                    "corr_lin_interp": corr_lin_interp,
+                                    "corr_zero_interp": corr_zero_interp,
                                     "corr_b1": corr_b1,
                                     "corr_b2": corr_b2,
                                     "corr_b3": corr_b3,
                                     "snr_waicup": snr_waicup,
+                                    "snr_interp": snr_interp,
+                                    "snr_lin_interp": snr_lin_interp,
+                                    "snr_zero_interp": snr_zero_interp,
                                     "snr_b1": snr_b1,
                                     "snr_b2": snr_b2,
-                                    "snr_b3": snr_b3}, ignore_index=True)
-        results.to_csv("magprime_results_C.csv", index=False) 
+                                    "snr_b3": snr_b3
+                                }, ignore_index=True)
+        results.to_csv("kplo_results.csv", index=False) 
+
 
 
 if __name__ == "__main__":
