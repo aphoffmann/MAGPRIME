@@ -1,5 +1,5 @@
 # Purpose: Setup file for MAGPRIME package
-from setuptools import setup
+from setuptools import setup, find_packages
 
 REQUIREMENTS = [
     'pandas',
@@ -31,12 +31,14 @@ DEPENDENCY_LINKS = [
 
 setup(
     name='magprime',
-    version='0.1',
+    version='0.9955',
     description="Magnetic signal PRocessing, Interference Mitigation, and Enhancement (MAGPRIME)",
     author="Alex Paul Hoffmann",
     author_email='aphoff@umich.edu',
     url='https://github.com/aphoffmann/MAGPRIME',
-    packages=['magprime'],
+    packages=find_packages(),
+    package_data={'magprime.examples': ['*.ipynb'],
+                  'magprime.utility.SPACE_DATA': ['*.dat', '*.csv'],},
     install_requires=REQUIREMENTS,
     dependency_links=DEPENDENCY_LINKS
 )

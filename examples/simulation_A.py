@@ -10,14 +10,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import signal
-from sklearn.metrics import mean_squared_error
 import random
 from scipy.signal import chirp
 import scipy.spatial.transform as st
 import tqdm
 import os
-import keyboard
 from scipy.signal import butter, lfilter
+import scaleogram as scg
 
 "Noise Reduction Algorithms"
 from magprime import ICA, MSSA, NESS, PiCoG, SHEINKER, REAM, UBSS, WAICUP
@@ -85,15 +84,15 @@ def createMixingMatrix(seed, axis = 0):
     np.random.seed(seed)
 
     "Create Sensors"
-    s1 = magpy.Sensor(position=(0,0,500), style_size=1.8)
-    s2 = magpy.Sensor(position=(0,0,800), style_size=1.8)
+    s1 = magpy.Sensor(position=(0,0,300), style_size=1.8)
+    s2 = magpy.Sensor(position=(0,0,600), style_size=1.8)
     s = [s1,s2]
     
     "Create Sources"
-    d1 = magpy.current.Loop(current=10, diameter=100, orientation=st.Rotation.random(),  position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))
-    d2 = magpy.current.Loop(current=10, diameter=100, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))    
-    d3 = magpy.current.Loop(current=10, diameter=100, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))
-    d4 = magpy.current.Loop(current=10, diameter=100, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290))) 
+    d1 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(),  position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))
+    d2 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))    
+    d3 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))
+    d4 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290))) 
     src = [d1,d2,d3,d4]
 
     if False: plotNoiseFields([s1,s2],src)
@@ -172,6 +171,65 @@ def snr(x, y):
     return 10 * np.log10(num / den) # return SNR in decibels
 
 
+def plotSourceSignals():
+    "Create Signals Arrays"
+    duration = 100; sampleRate = 50; N = duration*sampleRate; T = 1/sampleRate
+    samples = np.linspace(0, duration, N, endpoint=False)
+    signals = np.zeros((5, samples.shape[0]))
+
+    "Import ambient magnetic field signal."
+    df=pd.read_csv('examples\SPACE_DATA\Swarm_MAGA_HR_20150317_0900.csv', sep=',',header=None)
+    r = df[10]
+    swarm = np.array([np.fromstring(r[i][1:-1], dtype=float, sep=' ') for i in range(1, r.shape[0])]).T[:,160000:160000+N]
+
+    "Import Michibiki Data"
+    michibiki = noiseMichibiki()
+        
+
+    random.seed(0)
+    np.random.seed(0)
+
+    n = random.randint(0, michibiki.shape[-1]-5000)
+
+    "Create Source Signals"
+    signals[0] = swarm[0]
+    signals[1] = noiseReactionWheel(sampleRate, N, np.random.randint(4,sampleRate//2), 0) # Reaction Wheels
+    signals[2] = (michibiki[0][n:n+5000]-np.mean(michibiki[0][n:n+5000]))/np.max(np.abs((michibiki[0][n:n+5000]-np.mean(michibiki[0][n:n+5000])))) # Michibiki
+    signals[3] = noiseArcjet(N, 0) # Arcjet
+    signals[4] = signal.sawtooth(2 * np.pi * 3 * samples)*randomizeSignals(N,random.randint(0,100000))
+
+
+    "Plot Signals"
+    fig, axs = plt.subplots(5, 2, gridspec_kw={'width_ratios': [2, 1]},)
+    for i in range(5):
+        axs[i,0].plot(samples, signals[i])
+        axs[i,0].set_ylabel('nT')
+        axs[i,1] = scg.cws(samples, signals[i]/np.max(signals[i]), scales=np.geomspace(.1, 1000,1000),
+            ax=axs[i,1], cmap="Spectral_r", cbar=None, ylabel=" ", wavelet='cmor0.7-1.5',
+            xlabel=" ", title=" ", ylim=(12,.05),
+            yscale='log', yaxis='period', spectrum='amp', cscale='log', clim=(.03, 1))
+        # Move axs[i,1] ticks to the right side
+        axs[i,1].yaxis.tick_right()
+        axs[i,1].set_ylabel("T [s]", fontsize = 12)
+        axs[i, 1].yaxis.set_label_position("right")
+        axs[i, 1].yaxis.set_minor_locator(plt.NullLocator())
+        axs[i, 1].yaxis.set_major_locator(plt.FixedLocator([1, 10]))
+        # axs[i,1].set_yticklabels([10,1])
+        # Turn off xtick labels
+        if(i < 4):
+            axs[i,1].set_xticklabels([])
+            axs[i,0].set_xticklabels([])
+
+
+    axs[-1,0].set_xlabel("Seconds", fontsize=12); axs[-1,1].set_xlabel("Seconds", fontsize=12)
+    axs[0,0].set_title("Source Signals", fontsize=16); axs[0,1].set_title("Signal Scalograms", fontsize=16)
+    axs[0,0].legend(["(a)"], loc=1,handlelength=0, handletextpad=0, fancybox=True)
+    axs[1,0].legend(["(b)"], loc=1,handlelength=0, handletextpad=0, fancybox=True)
+    axs[2,0].legend(["(c)"], loc=1,handlelength=0, handletextpad=0, fancybox=True)
+    axs[3,0].legend(["(d)"], loc=1,handlelength=0, handletextpad=0, fancybox=True)
+    axs[4,0].legend(["(e)"], loc=1,handlelength=0, handletextpad=0, fancybox=True)
+    plt.show()
+
 def run():
     "Create Signals Arrays"
     duration = 100; sampleRate = 50; N = duration*sampleRate; T = 1/sampleRate
@@ -200,9 +258,7 @@ def run():
 
     
     "BEGIN MONTE CARLO SIMULATION"
-    for i in tqdm.tqdm(range(last_seed + 1, 10000)):
-        if keyboard.is_pressed("k"):
-            break
+    for i in tqdm.tqdm(range(last_seed + 1, 10)):
         random.seed(i)
         np.random.seed(i)
 
@@ -215,25 +271,21 @@ def run():
         signals[3] = noiseArcjet(N, i) # Arcjet
         signals[4] = signal.sawtooth(2 * np.pi * 3 * samples)*randomizeSignals(N,random.randint(0,100000))
 
+
         "Create Mixing Matrices"
         Kx = createMixingMatrix(i, 0)
         Ky = createMixingMatrix(i, 1)
         Kz = createMixingMatrix(i, 2)
 
         "Create Mixed Signals"
-        cutoff_freq = 0.01; order = 4; nyquist = 0.5 * 50; normalized_cutoff = cutoff_freq / nyquist
-        b, a = butter(order, normalized_cutoff, btype='low')
-        signals[1:] -= lfilter(b, a, signals[1:])
         Bx = Kx @ signals
 
         signals[0] = swarm[1]
         signals[2] = (michibiki[1][n:n+5000]-np.mean(michibiki[1][n:n+5000]))/np.max(np.abs((michibiki[1][n:n+5000]-np.mean(michibiki[1][n:n+5000]))))
-        signals[1:] -= lfilter(b, a, signals[1:])
         By = Ky @ signals
 
         signals[0] = swarm[2]
         signals[2] = (michibiki[2][n:n+5000]-np.mean(michibiki[2][n:n+5000]))/np.max(np.abs((michibiki[2][n:n+5000]-np.mean(michibiki[2][n:n+5000]))))
-        signals[1:] -= lfilter(b, a, signals[1:])
         Bz = Kz @ signals
 
         "Create B"
@@ -307,15 +359,12 @@ def run():
 
         "UBSS"
         UBSS.boom = 1
-        UBSS.sigma = 2
+        UBSS.sigma = 1
         UBSS.lambda_ = 2
         UBSS.fs = sampleRate
-        UBSS.bpo = 10
-        try:
-            B_ubss = UBSS.clean(np.copy(B))
-        except:
-            UBSS.cs_iters = 1
-            B_ubss = UBSS.clean(np.copy(B))
+        UBSS.bpo = 2
+        B_ubss = UBSS.clean(np.copy(B))
+
             
         rmse_ubss = np.sqrt(((swarm.T-B_ubss.T)**2).mean(axis=0))
         corr_ubss = np.zeros(3); snr_ubss = np.zeros(3)
