@@ -32,9 +32,11 @@ def find_ness_coupling_coefficients(B):
     
     # Reconstruct Time Series
     B_filtered = inverse_wavelet_transform(filtered_w, w)
-    # Fit Dipole to time series data
+    
+    # Calculate Coupling Coefficients
+    alpha_couplings = np.nanmean((np.abs(B_filtered[0]) / np.abs(B_filtered[1])), axis=-1)
 
-    # Return Ness Coupling Coefficients
+    return alpha_couplings
 
 def inverse_wavelet_transform(filtered_w, w):
     # w: (n_scales, n_sensors, n_axes, n_samples)
@@ -102,27 +104,3 @@ def filter_wavelets(w):
     
     return filtered_w
 
-
-def dipole_magnetic_field(r, m):
-    mu_0 = 4 * np.pi * 1e-7  # Permeability of free space
-    r_magnitude = np.linalg.norm(r, axis=1, keepdims=True)
-    r_unit = r / r_magnitude
-    dot_product = np.sum(m * r_unit, axis=1, keepdims=True)
-    B = (mu_0 / (4 * np.pi)) * ((3 * dot_product * r_unit) / r_magnitude**3 - m / r_magnitude**3)
-    return B
-
-def objective_function(params, B_measured, r):
-    m = params[:3]
-    k = params[3]
-    B_model = dipole_magnetic_field(r, m)
-    B_predicted = k * B_model
-    error = np.linalg.norm(B_measured - B_predicted)
-    return error
-
-def find_coupling_coefficient(B_measured, r):
-    # Initial guess: random dipole moment and coupling coefficient
-    initial_guess = np.random.rand(4)
-    result = minimize(objective_function, initial_guess, args=(B_measured, r), method='L-BFGS-B')
-    m_optimized = result.x[:3]
-    k_optimized = result.x[3]
-    return m_optimized, k_optimized
