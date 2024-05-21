@@ -17,7 +17,6 @@ def calculate_coupling_coefficients(B, fs=1, sspTol=15):
     
     # Take Wavelet Transform of the Magnetic Field Measurements
     w = WaveletAnalysis(B, dt=1/fs, frequency=True, dj = 1/12, unbias=False, mask_coi = True)
-    scales = w.scales
 
     # Filter out MSPs and ASSPs
     filtered_w = filter_wavelets(w.wavelet_transform, sspTol=sspTol) # (n_scales, n_sensors, n_axes, n_samples)
@@ -32,16 +31,15 @@ def calculate_coupling_coefficients(B, fs=1, sspTol=15):
 
 def inverse_wavelet_transform(filtered_w, w):
     # w: (n_scales, n_sensors, n_axes, n_samples)
-    dt = 1/fs; dj = 1/12
-    n_scales, n_sensors, n_axes, n_samples = filtered_w.shape
+    _, n_sensors, n_axes, n_samples = filtered_w.shape
     result  = np.zeros((n_sensors, n_axes, n_samples))
 
     for i in range(n_axes):
         for j in range(n_sensors):
                 W_n = filtered_w[:,j,i,:] 
                 Y_00 = w.wavelet.time(0)
-                r_sum = np.sum(W_n.real.T / scales ** .5, axis=-1).T
-                amb_mf = r_sum * (dj * dt ** .5 / (w.C_d * Y_00))
+                r_sum = np.sum(W_n.real.T / w.scales ** .5, axis=-1).T
+                amb_mf = r_sum * (w.dj * w.dt ** .5 / (w.C_d * Y_00))
                 result[j,i,:] = np.real(amb_mf)
 
     return result
