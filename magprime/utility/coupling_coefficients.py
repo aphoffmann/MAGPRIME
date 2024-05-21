@@ -5,22 +5,14 @@ from wavelets import WaveletAnalysis
 Author: Alex Hoffmann
 Last Update: 5/17/2024
 Description: Find Ness Coupling Coefficients through wavelet analysis 
-
-Algorithm Parameters
-----------
-fs : sampling frequency
-sspTol : cosine similarity threshold for identifying multi-source points
 """
 
 
-"Algorithm Parameters"
-fs = 1              # Sampling Frequency
-sspTol = 15          # Cosine Similarity Threshold for Identifying Multi-Source Points
-scales = None       # Scales used in the wavelet transform
-
-def find_ness_coupling_coefficients(B):
+def calculate_coupling_coefficients(B, fs=1, sspTol=15):
     """
     B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
+    fs : sampling frequency
+    sspTol : cosine similarity threshold for identifying multi-source points (MSPs) and ambient single-source points (ASSPs)
     """
     
     # Take Wavelet Transform of the Magnetic Field Measurements
@@ -28,7 +20,7 @@ def find_ness_coupling_coefficients(B):
     scales = w.scales
 
     # Filter out MSPs and ASSPs
-    filtered_w = filter_wavelets(w.wavelet_transform) # (n_scales, n_sensors, n_axes, n_samples)
+    filtered_w = filter_wavelets(w.wavelet_transform, sspTol=sspTol) # (n_scales, n_sensors, n_axes, n_samples)
     
     # Reconstruct Time Series
     B_filtered = inverse_wavelet_transform(filtered_w, w)
@@ -50,13 +42,13 @@ def inverse_wavelet_transform(filtered_w, w):
                 Y_00 = w.wavelet.time(0)
                 r_sum = np.sum(W_n.real.T / scales ** .5, axis=-1).T
                 amb_mf = r_sum * (dj * dt ** .5 / (w.C_d * Y_00))
-                result[j,i,:] = amb_mf
+                result[j,i,:] = np.real(amb_mf)
 
     return result
 
 
 # Define the filterSSP function for identifying multi-source points (MSPs)
-def identify_MSP(B):
+def identify_MSP(B, sspTol=15):
     """Identify Multi Source Points"""
     a = np.real(B)
     b = np.imag(B)
@@ -70,7 +62,7 @@ def identify_MSP(B):
     return MSP_Bools
 
 # Define the identifyASSP function for identifying ambient single-source points (ambient SSPs)
-def identify_ASSP(data):
+def identify_ASSP(data, sspTol=15):
     """Identify Ambient Single Source Points"""
     a = np.abs(data)
     b = np.ones(data.shape)
@@ -84,7 +76,7 @@ def identify_ASSP(data):
     return ASSP_Bools
 
 
-def filter_wavelets(w):
+def filter_wavelets(w, sspTol=15):
     n_scales, n_sensors, n_axes, n_samples = w.shape
     
     # Flatten scales
@@ -92,11 +84,11 @@ def filter_wavelets(w):
     
     for i in range(n_axes):        
         # Identify MSPs and zero them out
-        MSP_Bools = identify_MSP(w_flattened[:, i, :])
+        MSP_Bools = identify_MSP(w_flattened[:, i, :], sspTol=sspTol)
         w_flattened[:, i, MSP_Bools] = 0
         
         # Identify ambient SSPs and zero them out
-        ASSP_Bools = identify_ASSP(w_flattened[:, i, :])
+        ASSP_Bools = identify_ASSP(w_flattened[:, i, :], sspTol=sspTol)
         w_flattened[:, i, ASSP_Bools] = 0
     
     # Reshape back to original dimensions
