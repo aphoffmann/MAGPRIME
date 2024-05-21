@@ -48,7 +48,7 @@ def cleanMSSA(sig):
     "Detrend"
     if(detrend): 
         trend = uniform_filter1d(sig, size=uf)
-        sig -= trend
+        sig = sig - trend
     
     "Create MSSA Object and Fit"
     mssa = MSSA(n_components='variance_threshold',

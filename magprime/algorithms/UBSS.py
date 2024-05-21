@@ -61,11 +61,9 @@ def clean(B, triaxial = True):
     Output:
         result: reconstructed ambient field without the spacecraft-generated fields (axes, n_samples)
     """
-    #
-    print("CPU COUNT: ", mp.cpu_count())
     if(detrend):
         trend = uniform_filter1d(B, size=uf, axis = -1)
-        B -= trend
+        B = B - trend
 
     if(triaxial):
         result = np.zeros((3, B.shape[-1]))

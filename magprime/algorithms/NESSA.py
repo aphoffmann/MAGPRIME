@@ -40,7 +40,7 @@ def clean(B, triaxial = True):
     "Detrend and Clean Trend"
     if(detrend): 
         trend = uniform_filter1d(B, size=uf)
-        B -= trend
+        B = B - trend
         trend = cleanTrend(trend)
 
     "Apply M-SSA"
