@@ -24,6 +24,7 @@ import itertools
 "General Parameters"
 uf = 400            # Uniform Filter Size for detrending
 detrend = True     # Detrend the data
+aii = None         # Coupling Coefficients
 
 "Algorithm Parameters"
 fs = 1              # Sampling Frequency
@@ -53,13 +54,14 @@ def cleanWAICUP(sensors):
     if(detrend):
         trend = uniform_filter1d(sensors, size=uf)
         sensors = sensors - trend
+        trend = cleanTrend(trend)
     
     if(sensors.shape[0] == 2): result = dual(sensors, dt, dj)
     else: result = multi(sensors, dt, dj)
     
     "Retrend"
     if(detrend):
-        result += np.mean(trend, axis = 0)
+        result += trend
 
     return(result)
     
@@ -125,3 +127,15 @@ def multi(sig, dt, dj):
     "Return Ambient Magnetic Field"
     return(amb_mf)
 
+
+def cleanTrend(B, triaxial = True):
+    if(aii is None):
+        raise("NESS.aii must be set before calling clean()")
+    
+    if(triaxial):
+        result = np.multiply((B[0] - np.multiply(B[1], aii[:, np.newaxis])), (1/(1-aii))[:, np.newaxis])
+
+    else:
+        result = np.multiply((B[0] - np.multiply(B[1], aii)), (1/(1-aii)))
+        
+    return(result)
