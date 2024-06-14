@@ -22,7 +22,7 @@ def interpolate(B,gaps, triaxial = False):
     if(triaxial):
         result = np.zeros(B.shape)
         for i in range(3):
-            result[:,i,:] = monoaxial_interpolation(B[:,i,:], gaps)
+            result[:,i,:] = monoaxial_interpolation(B[:,i,:], np.copy(gaps))
     else:
         result = monoaxial_interpolation(B, gaps)
 
