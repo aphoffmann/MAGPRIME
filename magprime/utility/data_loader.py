@@ -5,7 +5,7 @@ import pkg_resources
 def load_michibiki_data():
     "Import the magnetometer data from the file"
     file_path = pkg_resources.resource_filename('magprime.utility.SPACE_DATA', 'michibiki.dat')
-    qzs_1 = np.loadtxt(file_path, dtype=np.float, usecols=(0, 4, 5, 6, 7, 8, 9))
+    qzs_1 = np.loadtxt(file_path, dtype=float, usecols=(0, 4, 5, 6, 7, 8, 9))
     B_qzs = qzs_1.T
 
     "Subtract the bias from the magnetometer data"

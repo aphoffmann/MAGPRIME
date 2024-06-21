@@ -28,7 +28,7 @@ def clean(B, triaxial = True):
     """
     if(detrend):
         trend = uniform_filter1d(B, size=uf, axis = -1)
-        B -= trend
+        B = B - trend
     
     if(triaxial == False):
         raise Exception("'triaxial' is set to False. PiCoG only works for triaxial data")
