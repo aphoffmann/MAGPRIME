@@ -24,6 +24,7 @@ def clean(B, triaxial = True):
     B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
     triaxis: boolean for whether to use triaxial or uniaxial ICA
     """
+    global aii
     if(aii is None):
         aii = calculate_coupling_coefficients(B, fs=fs, sspTol=sspTol, triaxial=triaxial)
 
