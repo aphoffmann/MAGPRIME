@@ -18,6 +18,7 @@ from wavelets import WaveletAnalysis
 aii = None          # Coupling matrix between the sensors and sources for NESS
 fs = 1              # Sampling Frequency
 sspTol = 15         # Cosine similarity threshold for identifying multi-source points (MSPs) and ambient single-source points (ASSPs)
+weights = None      # Weights for the Least-Squares Fit
 
 def clean(B, triaxial = True):
     """
@@ -41,13 +42,24 @@ def cleanNess(B, triaxial = True):
     if(aii is None):
         raise("NESS.aii must be set before calling clean()")
     
+    global weights
+    if (weights is None):
+        weights = np.ones(B.shape[0])
+
+    W = np.diag(weights)
+    result = np.zeros((2,3, B.shape[-1]))
     if(triaxial):
-        result = np.multiply((B[0] - np.multiply(B[1], aii[:, np.newaxis])), (1/(1-aii))[:, np.newaxis])
+        for axis in range(3):
+            # Get the mixing matrix for the current axis
+            A = aii[axis]
+            
+            # Solve for X
+            result[:, axis, :] = np.linalg.inv(A.T @ W @ A) @ A.T @ W @ np.flip(np.copy(B[:, axis, :]), axis = 0)
 
     else:
         result = np.multiply((B[0] - np.multiply(B[1], aii)), (1/(1-aii)))
         
-    return(result)
+    return(result[0])
     
 
 
@@ -68,9 +80,26 @@ def calculate_coupling_coefficients(B, fs=1, sspTol=15, triaxial=True):
     B_filtered = inverse_wavelet_transform(filtered_w, w)
     
     # Calculate Coupling Coefficients
-    alpha_couplings = np.nanmean((np.abs(B_filtered[0]) / np.abs(B_filtered[1])), axis=-1)
+    alpha_couplings = calculate_mixing_matrix(B_filtered, triaxial=triaxial)
 
     return alpha_couplings
+
+def calculate_mixing_matrix(B_filtered, triaxial):
+    n_sensors, axes, n_samples = B_filtered.shape
+    mixing_matrices = []
+
+    for axis in range(3):
+        # Initialize the mixing matrix with ones in the first column
+        mixing_matrix = np.zeros((n_sensors, 2))
+        mixing_matrix[:, 0] = 1
+        
+        # Calculate alpha values for the upper triangular part of the matrix for this axis
+        for i in range(n_sensors):
+            alpha_ij = np.nanmean(np.abs(B_filtered[0, axis]) / np.abs(B_filtered[i, axis]), axis=-1)
+            mixing_matrix[i,1] = alpha_ij
+        mixing_matrices.append((mixing_matrix))
+    
+    return np.array(mixing_matrices)
 
 def inverse_wavelet_transform(filtered_w, w):
     # w: (n_scales, n_sensors, n_axes, n_samples)
