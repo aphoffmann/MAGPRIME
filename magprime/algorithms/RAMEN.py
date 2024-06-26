@@ -46,9 +46,6 @@ def cleanNess(B, triaxial = True):
     if(weights is None):
         weights = np.ones(B.shape[0])
 
-    if(weights.shape[0] != aii.shape[0]):
-        raise Exception("Exception: Weights must have the same number of elements as the number of sensors")
-
     W = np.diag(weights)
     result = np.zeros((2,3, B.shape[-1]))
     if(triaxial):
