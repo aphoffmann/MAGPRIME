@@ -12,8 +12,9 @@ import numpy as np
 from magprime.utility import calculate_coupling_coefficients
 
 "Algorithm Parameters"
-fs = 1
+fs = 50
 sspTol = 15
+aii = None
 
 def clean(B, triaxial = True):
     """
@@ -44,13 +45,13 @@ def cleanHOG(B):
 
     "Find first order coupling coefficients"
     for i in range(1,n_sensors):
-        K[1,i] = findGain(B[[0,i]])
+        K[i,1] = findGain(B[[i,0]])
 
 
     "Calculate Gradients"
     gradients = [None, None]
     for i in range(1,n_sensors):
-        a_ij = findGain(B[[i-1,i]])
+        a_ij = findGain(B[[i,i-1]])
         B_sc = (B[i] - B[i-1]) / (a_ij - 1)
         gradients.append(B_sc)
 
@@ -58,13 +59,16 @@ def cleanHOG(B):
     for i in range(2,n_sensors): # Column
         for j in range(i,n_sensors): # Row
             "Find Gain K[i,j]"
-            K[i,j] = findGain(np.array([gradients[i], gradients[j+1]]))
+            K[j,i] = findGain(np.array([ gradients[j+1],gradients[i]]))
 
         "Recalculate Higher Order Gradients for next iteration"
         for j in range(i,n_sensors):
-            a_ij = findGain(gradients[[j,j+1]])
+            a_ij = findGain(np.array([ gradients[j+1], gradients[j]]))
             G_sc = (gradients[j+1] - gradients[j]) / (a_ij - 1)
             gradients.append(G_sc)
+
+    global aii;
+    aii = K
 
     W = np.diag(np.geomspace(10, 0.1, n_sensors))
     result = np.linalg.inv(K.T @ W @ K) @ K.T @ W @ np.flip(B, axis=0)
