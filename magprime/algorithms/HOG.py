@@ -18,6 +18,8 @@ sspTol = 15
 aii = None
 weights = None
 gain_method = 'sheinker' # 'sheinker' or 'ramen'
+cond = None
+
 
 def clean(B, triaxial = True):
     """
@@ -79,6 +81,7 @@ def cleanHOG(B):
     W = np.diag(weights)
 
     factors = np.geomspace(1, 100, 100)
+    global cond
     cond = np.linalg.cond(K.T @ W @ K)
     for factor in factors:
         K_temp = K.copy()
@@ -87,7 +90,7 @@ def cleanHOG(B):
                 K_temp[j, i] *= factor
 
         if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
-            print("Condition number of K.T @ W @ K: ", np.linalg.cond(K_temp.T @ W @ K_temp), ", Factor: ", factor)
+            #print("Condition number of K.T @ W @ K: ", np.linalg.cond(K_temp.T @ W @ K_temp), ", Factor: ", factor)
             K = K_temp
             cond = np.linalg.cond(K.T @ W @ K)
 
