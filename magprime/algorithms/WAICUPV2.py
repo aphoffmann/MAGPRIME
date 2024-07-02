@@ -127,7 +127,7 @@ def HOG(B):
         K_temp = K.copy()
         for i in range(1, n_sensors):
             for j in range(i, n_sensors):
-                K_temp[j, i] *= factor
+                K_temp[j, i] *= factor**j
 
         if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
             K = K_temp
@@ -164,10 +164,8 @@ def findGainRAMEN(B):
         B_filtered[:, ASSP_Bools] = 0
 
         k_hat = np.nanmean(np.abs(B_filtered[1]) / np.abs(B_filtered[0]), axis=-1)
-        print("Numerator: ", np.nanmean(np.abs(B_filtered[1])),", denominator: ", np.nanmean(np.abs(B_filtered[0])), ", gain: ", k_hat)
-        if(k_hat < 1 or np.isnan(k_hat)):
-            k_hat = 1
-        print("Gain: ", k_hat)
+        if(np.isnan(k_hat) or np.isinf(k_hat)):
+            k_hat = 1.1
         return(k_hat)
 
 

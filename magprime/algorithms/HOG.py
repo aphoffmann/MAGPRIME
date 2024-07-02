@@ -87,7 +87,7 @@ def cleanHOG(B):
         K_temp = K.copy()
         for i in range(1, n_sensors):
             for j in range(i, n_sensors):
-                K_temp[j, i] *= factor
+                K_temp[j, i] *= factor**j
 
         if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
             #print("Condition number of K.T @ W @ K: ", np.linalg.cond(K_temp.T @ W @ K_temp), ", Factor: ", factor)
