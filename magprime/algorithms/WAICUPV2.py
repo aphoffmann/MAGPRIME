@@ -30,6 +30,8 @@ fs = 1              # Sampling Frequency
 dj = 1/12           # Wavelet Scale Spacing
 scales = None       # Scales used in the wavelet transform
 weights = None      # Weights for the Least-Squares Fit
+gain_method = "sheinker" # 'sheinker' or 'ramen'
+sspTol = 15         # Cosine similarity threshold for identifying multi-source points (MSPs) and ambient single-source points (ASSPs)
 
 def clean(B, triaxial = True):
     """
@@ -136,11 +138,57 @@ def HOG(B):
     return(result[0])
 
 
-
 def findGain(B):
+    if gain_method.lower() == "sheinker":
+        return findGainShienker(B)
+    elif gain_method.lower() == "ramen":
+        return findGainRAMEN(B)
+    else:
+        raise ValueError("Invalid gain method")
+
+def findGainShienker(B):
     d = B[1]-B[0]
     c0 = np.sum(d*B[0])
     c1 = np.sum(d*B[1])
     k_hat = c1/c0
     return(k_hat)
 
+def findGainRAMEN(B):
+        B_filtered = np.copy(B)
+        # Identify MSPs and zero them out
+        MSP_Bools = identify_MSP(B_filtered, sspTol=sspTol)
+        B_filtered[:, MSP_Bools] = 0
+        
+        # Identify ambient SSPs and zero them out
+        ASSP_Bools = identify_ASSP(B_filtered, sspTol=sspTol)
+        B_filtered[:, ASSP_Bools] = 0
+
+        return( np.nanmean(np.abs(B_filtered[1]) / np.abs(B_filtered[0]), axis=-1))
+
+
+
+def identify_MSP(B, sspTol=15):
+    """Identify Multi Source Points"""
+    a = np.real(B)
+    b = np.imag(B)
+    a_dot_b = (a * b).sum(axis=0)
+    norm_a = np.linalg.norm(a, axis=0)
+    norm_a[norm_a == 0] = 1
+    norm_b = np.linalg.norm(b, axis=0)
+    norm_b[norm_b == 0] = 1
+    cos_sim = np.abs(a_dot_b / (norm_a * norm_b))
+    MSP_Bools = cos_sim < np.cos(np.deg2rad(sspTol))
+    return MSP_Bools
+
+def identify_ASSP(data, sspTol=15):
+    """Identify Ambient Single Source Points"""
+    a = np.abs(data)
+    b = np.ones(data.shape)
+    a_dot_b = (a * b).sum(axis=0)
+    norm_a = np.linalg.norm(a, axis=0)
+    norm_a[norm_a == 0] = 1
+    norm_b = np.linalg.norm(b, axis=0)
+    norm_b[norm_b == 0] = 1
+    cos_sim = np.abs(a_dot_b / (norm_a * norm_b))
+    ASSP_Bools = cos_sim >= np.cos(np.deg2rad(sspTol))
+    return ASSP_Bools
