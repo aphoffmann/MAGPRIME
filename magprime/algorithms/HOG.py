@@ -18,8 +18,7 @@ sspTol = 15
 aii = None
 weights = None
 gain_method = 'sheinker' # 'sheinker' or 'ramen'
-cond = None
-
+order = np.inf
 
 def clean(B, triaxial = True):
     """
@@ -42,15 +41,17 @@ def cleanHOG(B):
     n_sensors, n_samples = B.shape
 
     "Initialize coupling matrix K"
-    K = np.zeros((B.shape[0], B.shape[0]))
+    global order
+    order = min(order, B.shape[0])
+    K = np.zeros((B.shape[0], order))
     K[:,0] = 1
     # set values above diagonals to 1: 
-    for i in range(1,n_sensors): # Column
+    for i in range(1,order): # Column
         K[i-1,i] = 1
 
     "Find first order coupling coefficients"
     for i in range(1,n_sensors):
-        K[i,1] = findGain(B[[0,i]])
+        K[i,1] = findGain(B[[i,0]])
 
 
     "Calculate Gradients"
@@ -61,10 +62,10 @@ def cleanHOG(B):
         gradients.append(B_sc)
 
     "Find higher order coupling coefficients"
-    for i in range(2,n_sensors): # Column
+    for i in range(2,order): # Column
         for j in range(i,n_sensors): # Row
             "Find Gain K[i,j]"
-            K[j,i] = findGain(np.array([gradients[i],gradients[j+1]]))
+            K[j,i] = findGain(np.array([gradients[j+1],gradients[i]]))
 
         "Recalculate Higher Order Gradients for next iteration"
         for j in range(i,n_sensors):
@@ -81,16 +82,15 @@ def cleanHOG(B):
     W = np.diag(weights)
 
     factors = np.geomspace(1, 100, 100)
-    global cond
     cond = np.linalg.cond(K.T @ W @ K)
     for factor in factors:
         K_temp = K.copy()
-        for i in range(1, n_sensors):
+        for i in range(1, order):
             for j in range(i, n_sensors):
-                K_temp[j, i] *= factor**j
+                K_temp[j, i] *= factor
 
         if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
-            #print("Condition number of K.T @ W @ K: ", np.linalg.cond(K_temp.T @ W @ K_temp), ", Factor: ", factor)
+            print("Condition number of K.T @ W @ K: ", np.linalg.cond(K_temp.T @ W @ K_temp), ", Factor: ", factor)
             K = K_temp
             cond = np.linalg.cond(K.T @ W @ K)
 
