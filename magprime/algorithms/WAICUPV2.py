@@ -68,14 +68,14 @@ def cleanWAICUP(sensors):
 def dual(sig, dt, dj):
     "Create Wavelets"
     w = np.array([WaveletAnalysis(sig[i], dt=dt, frequency=True, dj = dj, unbias=False, mask_coi = True) for i in range(sig.shape[0])])
-    wn = np.array([wav.wavelet_transform.real for wav in w])
+    wn = np.array([wav.wavelet_transform for wav in w])
 
     scales = w[0].scales
-    w_clean_real = np.zeros(wn.shape[1:])
-    for s in range(w_clean_real.shape[0]):
-        w_clean_real[s] = HOG(wn[:,s,:])
+    w_clean = np.zeros(wn.shape[1:])
+    for s in range(w_clean.shape[0]):
+        w_clean[s] = HOG(wn[:,s,:])
 
-    W_n = w_clean_real 
+    W_n = w_clean.real 
     Y_00 = w[0].wavelet.time(0)
     r_sum = np.sum(W_n.real.T / scales ** .5, axis=-1).T
     amb_mf = r_sum * (dj * dt ** .5 / (w[0].C_d * Y_00.real))
@@ -122,25 +122,24 @@ def HOG(B):
     W = np.diag(weights)
 
     factors = np.geomspace(1, 100, 100)
-    cond = np.linalg.cond(K.T @ W @ K)
+    cond = np.linalg.cond(K)
     for factor in factors:
         K_temp = K.copy()
-        for i in range(1, n_sensors):
-            for j in range(i, n_sensors):
-                K_temp[j, i] *= factor
+        for i in range(1, n_sensors): # row
+            for j in range(i, n_sensors): # column
+                K_temp[j, i] *= factor**j 
 
         if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
             K = K_temp
-            cond = np.linalg.cond(K.T @ W @ K)
+            cond = np.linalg.cond(K)
 
-    aii = K
     result = np.linalg.solve(K.T @ W @ K, K.T @ W @ B)
     return(result[0])
 
 
 def findGain(B):
     if gain_method.lower() == "sheinker":
-        return findGainShienker(B)
+        return findGainShienker(B.real)
     elif gain_method.lower() == "ramen":
         return findGainRAMEN(B)
     else:
@@ -155,6 +154,7 @@ def findGainShienker(B):
 
 def findGainRAMEN(B):
         B_filtered = np.copy(B)
+        
         # Identify MSPs and zero them out
         MSP_Bools = identify_MSP(B_filtered, sspTol=sspTol)
         B_filtered[:, MSP_Bools] = 0
@@ -163,7 +163,12 @@ def findGainRAMEN(B):
         ASSP_Bools = identify_ASSP(B_filtered, sspTol=sspTol)
         B_filtered[:, ASSP_Bools] = 0
 
-        return( np.nanmean(np.abs(B_filtered[1]) / np.abs(B_filtered[0]), axis=-1))
+        k_hat = np.nanmean(np.abs(B_filtered[1]) / np.abs(B_filtered[0]), axis=-1)
+        print("Numerator: ", np.nanmean(np.abs(B_filtered[1])),", denominator: ", np.nanmean(np.abs(B_filtered[0])), ", gain: ", k_hat)
+        if(k_hat < 1 or np.isnan(k_hat)):
+            k_hat = 1
+        print("Gain: ", k_hat)
+        return(k_hat)
 
 
 
