@@ -65,7 +65,7 @@ def cleanHOG(B):
     for i in range(2,order): # Column
         for j in range(i,n_sensors): # Row
             "Find Gain K[i,j]"
-            K[j,i] = findGain(np.array([gradients[j+1],gradients[i]]))
+            K[j,i] = findGain(np.array([gradients[i],gradients[j+1]]))
 
         "Recalculate Higher Order Gradients for next iteration"
         for j in range(i,n_sensors):
@@ -90,7 +90,7 @@ def cleanHOG(B):
                 K_temp[j, i] *= factor
 
         if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
-            print("Condition number of K.T @ W @ K: ", np.linalg.cond(K_temp.T @ W @ K_temp), ", Factor: ", factor)
+            #print("Condition number of K.T @ W @ K: ", np.linalg.cond(K_temp.T @ W @ K_temp), ", Factor: ", factor)
             K = K_temp
             cond = np.linalg.cond(K.T @ W @ K)
 

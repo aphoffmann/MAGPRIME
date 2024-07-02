@@ -32,6 +32,8 @@ scales = None       # Scales used in the wavelet transform
 weights = None      # Weights for the Least-Squares Fit
 gain_method = "sheinker" # 'sheinker' or 'ramen'
 sspTol = 15         # Cosine similarity threshold for identifying multi-source points (MSPs) and ambient single-source points (ASSPs)
+order = np.inf      # Order of the HOG algorithm
+
 
 def clean(B, triaxial = True):
     """
@@ -86,10 +88,12 @@ def HOG(B):
     n_sensors, n_samples = B.shape
 
     "Initialize coupling matrix K"
-    K = np.zeros((B.shape[0], B.shape[0]))
+    global order
+    order = min(order, B.shape[0])
+    K = np.zeros((B.shape[0], order))
     K[:,0] = 1
     # set values above diagonals to 1: 
-    for i in range(1,n_sensors): # Column
+    for i in range(1,order): # Column
         K[i-1,i] = 1
 
     "Find first order coupling coefficients"
@@ -105,7 +109,7 @@ def HOG(B):
         gradients.append(B_sc)
 
     "Find higher order coupling coefficients"
-    for i in range(2,n_sensors): # Column
+    for i in range(2,order): # Column
         for j in range(i,n_sensors): # Row
             "Find Gain K[i,j]"
             K[j,i] = findGain(np.array([gradients[i],gradients[j+1]]))
@@ -125,14 +129,13 @@ def HOG(B):
     cond = np.linalg.cond(K)
     for factor in factors:
         K_temp = K.copy()
-        for i in range(1, n_sensors):
+        for i in range(1, order):
             for j in range(i, n_sensors):
                 K_temp[j, i] *= factor**j
 
         if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
             K = K_temp
             cond = np.linalg.cond(K)
-
     result = np.linalg.solve(K.T @ W @ K, K.T @ W @ B)
     return(result[0])
 
