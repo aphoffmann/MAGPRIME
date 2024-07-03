@@ -51,7 +51,7 @@ def cleanHOG(B):
 
     "Find first order coupling coefficients"
     for i in range(1,n_sensors):
-        K[i,1] = findGain(B[[i,0]])
+        K[i,1] = findGain(B[[0,i]])
 
 
     "Calculate Gradients"
@@ -65,7 +65,7 @@ def cleanHOG(B):
     for i in range(2,order): # Column
         for j in range(i,n_sensors): # Row
             "Find Gain K[i,j]"
-            K[j,i] = findGain(np.array([gradients[j+1],gradients[i]]))
+            K[j,i] = findGain(np.array([gradients[i],gradients[j+1]]))
 
         "Recalculate Higher Order Gradients for next iteration"
         for j in range(i,n_sensors):
@@ -133,7 +133,7 @@ def findGainRamen(B, fs=1, sspTol=15):
     B_filtered = inverse_wavelet_transform(filtered_w, w)
     
     # Calculate Coupling Coefficients
-    k_hat = np.nanmean(np.abs(B_filtered[0]) / np.abs(B_filtered[1]), axis=-1)
+    k_hat = np.nanmean(B_filtered[0] / B_filtered[1], axis=-1)
 
     return k_hat
 
