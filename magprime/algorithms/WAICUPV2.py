@@ -33,6 +33,7 @@ weights = None      # Weights for the Least-Squares Fit
 gain_method = "sheinker" # 'sheinker' or 'ramen'
 sspTol = 15         # Cosine similarity threshold for identifying multi-source points (MSPs) and ambient single-source points (ASSPs)
 order = np.inf      # Order of the HOG algorithm
+flip = False        # Flip the data before applying the algorithm
 
 
 def clean(B, triaxial = True):
@@ -40,6 +41,10 @@ def clean(B, triaxial = True):
     B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
     triaxial: boolean for whether to use triaxial or uniaxial ICA
     """
+
+    if(flip):
+        B = np.flip(np.copy(B), axis = 0) 
+
     if(triaxial):
         result = np.zeros((3, B.shape[-1]))
         for axis in range(3):
@@ -55,7 +60,7 @@ def cleanWAICUP(sensors):
 
     "Detrend"
     if(detrend):
-        trend = uniform_filter1d(sensors, size=uf)
+        trend = uniform_filter1d(sensors, size=uf, mode='constant')
         sensors = sensors - trend
     
     result = dual(sensors, dt, dj)

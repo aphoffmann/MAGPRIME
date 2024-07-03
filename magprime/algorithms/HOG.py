@@ -19,12 +19,16 @@ aii = None
 weights = None
 gain_method = 'sheinker' # 'sheinker' or 'ramen'
 order = np.inf
+flip = False        # Flip the data before applying the algorithm
 
 def clean(B, triaxial = True):
     """
     B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
     triaxial: boolean for whether to use triaxial or uniaxial ICA
     """
+
+    if(flip):
+        B = np.flip(np.copy(B), axis = 0) 
 
     if(triaxial):
         result = np.zeros((3, B.shape[-1]))
