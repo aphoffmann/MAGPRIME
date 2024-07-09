@@ -32,12 +32,19 @@ scales = None       # Scales used in the wavelet transform
 weights = None      # Weights for the Least-Squares Fit
 gain_method = "sheinker" # 'sheinker' or 'ramen'
 sspTol = 15         # Cosine similarity threshold for identifying multi-source points (MSPs) and ambient single-source points (ASSPs)
+order = np.inf      # Order of the HOG algorithm
+flip = False        # Flip the data before applying the algorithm
+condition  = True   # Condition the coupling matrix
 
 def clean(B, triaxial = True):
     """
     B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
     triaxial: boolean for whether to use triaxial or uniaxial ICA
     """
+
+    if(flip):
+        B = np.flip(np.copy(B), axis = 0) 
+
     if(triaxial):
         result = np.zeros((3, B.shape[-1]))
         for axis in range(3):
@@ -53,7 +60,7 @@ def cleanWAICUP(sensors):
 
     "Detrend"
     if(detrend):
-        trend = uniform_filter1d(sensors, size=uf)
+        trend = uniform_filter1d(sensors, size=uf, mode='constant')
         sensors = sensors - trend
     
     result = dual(sensors, dt, dj)
@@ -86,10 +93,12 @@ def HOG(B):
     n_sensors, n_samples = B.shape
 
     "Initialize coupling matrix K"
-    K = np.zeros((B.shape[0], B.shape[0]))
+    global order
+    order = min(order, B.shape[0])
+    K = np.zeros((B.shape[0], order))
     K[:,0] = 1
     # set values above diagonals to 1: 
-    for i in range(1,n_sensors): # Column
+    for i in range(1,order): # Column
         K[i-1,i] = 1
 
     "Find first order coupling coefficients"
@@ -105,7 +114,7 @@ def HOG(B):
         gradients.append(B_sc)
 
     "Find higher order coupling coefficients"
-    for i in range(2,n_sensors): # Column
+    for i in range(2,order): # Column
         for j in range(i,n_sensors): # Row
             "Find Gain K[i,j]"
             K[j,i] = findGain(np.array([gradients[i],gradients[j+1]]))
@@ -116,22 +125,25 @@ def HOG(B):
             G_sc = (gradients[j+1] - gradients[j]) / (a_ij - 1)
             gradients.append(G_sc)
 
-    global weights
+    global weights;
     if(weights is None):
         weights = np.ones(n_sensors)
     W = np.diag(weights)
+    aii = np.copy(K)
 
-    factors = np.geomspace(1, 100, 100)
-    cond = np.linalg.cond(K)
-    for factor in factors:
-        K_temp = K.copy()
-        for i in range(1, n_sensors): # row
-            for j in range(i, n_sensors): # column
-                K_temp[j, i] *= factor**j 
+    if(condition):
+        aii = np.copy(K)
+        factors = np.geomspace(1, 100, 100)
+        cond = np.linalg.cond(K.T @ W @ K)
+        for factor in factors:
+            K_temp = aii.copy()
+            for i in range(1, order):
+                for j in range(i, n_sensors):
+                    K_temp[j, i] *= K_temp[j, i]*factor
 
-        if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
-            K = K_temp
-            cond = np.linalg.cond(K)
+            if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
+                K = K_temp
+                cond = np.linalg.cond(K.T @ W @ K)
 
     result = np.linalg.solve(K.T @ W @ K, K.T @ W @ B)
     return(result[0])
@@ -141,7 +153,7 @@ def findGain(B):
     if gain_method.lower() == "sheinker":
         return findGainShienker(B.real)
     elif gain_method.lower() == "ramen":
-        return findGainRAMEN(B)
+        return findGainRAMEN(B, sspTol=sspTol)
     else:
         raise ValueError("Invalid gain method")
 
@@ -152,7 +164,7 @@ def findGainShienker(B):
     k_hat = c1/c0
     return(k_hat)
 
-def findGainRAMEN(B):
+def findGainRAMEN(B, sspTol=15):
         B_filtered = np.copy(B)
         
         # Identify MSPs and zero them out
@@ -163,11 +175,9 @@ def findGainRAMEN(B):
         ASSP_Bools = identify_ASSP(B_filtered, sspTol=sspTol)
         B_filtered[:, ASSP_Bools] = 0
 
-        k_hat = np.nanmean(np.abs(B_filtered[1]) / np.abs(B_filtered[0]), axis=-1)
-        print("Numerator: ", np.nanmean(np.abs(B_filtered[1])),", denominator: ", np.nanmean(np.abs(B_filtered[0])), ", gain: ", k_hat)
-        if(k_hat < 1 or np.isnan(k_hat)):
-            k_hat = 1
-        print("Gain: ", k_hat)
+        k_hat = np.sum(np.abs(B_filtered[1]) / np.sum(np.abs(B_filtered[0])), axis=-1)
+        if(np.isnan(k_hat) or np.isinf(k_hat)):
+            k_hat = 1.1
         return(k_hat)
 
 
