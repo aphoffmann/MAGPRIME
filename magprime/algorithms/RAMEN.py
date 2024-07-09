@@ -19,6 +19,7 @@ aii = None          # Coupling matrix between the sensors and sources for NESS
 fs = 1              # Sampling Frequency
 sspTol = 15         # Cosine similarity threshold for identifying multi-source points (MSPs) and ambient single-source points (ASSPs)
 weights = None      # Weights for the Least-Squares Fit
+flip = False        # Flip the data before applying the algorithm
 
 def clean(B, triaxial = True):
     """
@@ -27,6 +28,13 @@ def clean(B, triaxial = True):
     """
     if(len(B.shape) > 2 and not triaxial):
         raise Exception("Exception: Triaxial Selected but B has more than 2 dimensions")
+
+    if(flip):
+        B = np.flip(np.copy(B), axis = 0) 
+
+    global weights
+    if(weights is None):
+        weights = np.ones(B.shape[0])
 
     global aii
     if(aii is None):
@@ -42,9 +50,7 @@ def cleanNess(B, triaxial = True):
     B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
     triaxial: boolean for whether to use triaxial or uniaxial ICA
     """
-    global weights
-    if(weights is None):
-        weights = np.ones(B.shape[0])
+
 
     W = np.diag(weights)
     result = np.zeros((2,3, B.shape[-1]))
@@ -107,11 +113,29 @@ def calculate_mixing_matrix(B_filtered, triaxial):
     else:
         mixing_matrix = np.zeros((n_sensors, 2))
         mixing_matrix[:, 0] = 1
-        
+
+
+        # Treat Matrix
+        global weights
+        W = np.diag(weights)
+        K = mixing_matrix
         for i in range(n_sensors):
-            alpha_ij = np.nanmean(np.abs(B_filtered[0]) / np.abs(B_filtered[i]), axis=-1)
+            alpha_ij = np.nanmean(np.abs(B_filtered[i]) / np.abs(B_filtered[0]), axis=-1)
             mixing_matrix[i,1] = alpha_ij
-        return mixing_matrix
+        factors = np.geomspace(1, 100, 100)
+        cond = np.linalg.cond(K.T @ W @ K)
+        for factor in factors:
+            K_temp = K.copy()
+            for i in range(1, n_sensors):
+                K_temp[i, 1] *= factor
+
+            if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
+                #print("Condition number of K.T @ W @ K: ", np.linalg.cond(K_temp.T @ W @ K_temp), ", Factor: ", factor)
+                K = K_temp
+                cond = np.linalg.cond(K.T @ W @ K)
+
+
+        return K
     
 def filter_wavelets(w, sspTol=15, triaxial=True):
     """Filter out Multi Source Points (MSPs) and Ambient Single Source Points (ASSPs) from the wavelet transform of the magnetic field measurements"""
