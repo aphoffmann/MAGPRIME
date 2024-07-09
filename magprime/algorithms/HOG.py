@@ -20,6 +20,7 @@ weights = None
 gain_method = 'sheinker' # 'sheinker' or 'ramen'
 order = np.inf
 flip = False        # Flip the data before applying the algorithm
+condition = True
 
 def clean(B, triaxial = True):
     """
@@ -71,11 +72,14 @@ def cleanHOG(B):
             "Find Gain K[i,j]"
             K[j,i] = findGain(np.array([gradients[i],gradients[j+1]]))
 
+
         "Recalculate Higher Order Gradients for next iteration"
+        new_gradients = []
         for j in range(i,n_sensors):
-            a_ij = findGain(np.array([gradients[j], gradients[j+1]]))
-            G_sc = (gradients[j+1] - gradients[j]) / (a_ij - 1)
-            gradients.append(G_sc)
+            a_ij = findGain(np.array([gradients[i], gradients[j+1]]))
+            G_sc = (gradients[j+1] - gradients[i]) / (a_ij - 1)
+            new_gradients.append(G_sc)
+        gradients = [None]*(i+1) + new_gradients
 
     global aii;
 
@@ -85,18 +89,35 @@ def cleanHOG(B):
         weights = np.ones(n_sensors)
     W = np.diag(weights)
 
-    factors = np.geomspace(1, 100, 100)
-    cond = np.linalg.cond(K.T @ W @ K)
-    for factor in factors:
-        K_temp = K.copy()
-        for i in range(1, order):
-            for j in range(i, n_sensors):
-                K_temp[j, i] *= factor
+    if(condition):
+        aii = np.copy(K)
+        factors = np.geomspace(1, 100, 100)
+        cond = np.linalg.cond(K.T @ W @ K)
+        for factor in factors:
+            K_temp = aii.copy()
+            for i in range(1, order):
+                for j in range(i, n_sensors):
+                    K_temp[j, i] *= factor
 
-        if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
-            #print("Condition number of K.T @ W @ K: ", np.linalg.cond(K_temp.T @ W @ K_temp), ", Factor: ", factor)
-            K = K_temp
-            cond = np.linalg.cond(K.T @ W @ K)
+            if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
+                #print("Condition number of K.T @ W @ K: ", np.linalg.cond(K_temp.T @ W @ K_temp), ", Factor: ", factor)
+                K = K_temp
+                cond = np.linalg.cond(K.T @ W @ K)
+
+    if(False):
+        aii = np.copy(K)
+        factors = np.geomspace(1, 100, 100)
+        cond = np.linalg.cond(K.T @ W @ K)
+        for factor in factors:
+            K_temp = aii.copy()
+            for i in range(1, order):
+                for j in range(i, n_sensors):
+                    K_temp[j, i] *= K_temp[j, i] + factor*(K_temp[j, i]-K_temp[i-1, i])
+
+            if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
+                print("Condition number of K.T @ W @ K: ", np.linalg.cond(K_temp.T @ W @ K_temp), ", Factor: ", factor)
+                K = K_temp
+                cond = np.linalg.cond(K.T @ W @ K)
 
     aii = K
     result = np.linalg.solve(K.T @ W @ K, K.T @ W @ B)
@@ -108,7 +129,7 @@ def findGain(B):
     if gain_method.lower() == "sheinker":
         return findGainSheinker(B)
     elif gain_method.lower() == "ramen":
-        return findGainRamen(B)
+        return findGainRamen(B, fs, sspTol)
     else:
         raise ValueError(f"Unknown gain method: {gain_method}")
 
@@ -137,7 +158,7 @@ def findGainRamen(B, fs=1, sspTol=15):
     B_filtered = inverse_wavelet_transform(filtered_w, w)
     
     # Calculate Coupling Coefficients
-    k_hat = np.nanmean(B_filtered[0] / B_filtered[1], axis=-1)
+    k_hat = np.sum(np.abs(B_filtered[1])) / np.sum(np.abs(B_filtered[0])) #np.nanmean( B_filtered[1] / B_filtered[0], axis=-1)
 
     return k_hat
 

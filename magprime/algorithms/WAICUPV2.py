@@ -34,7 +34,7 @@ gain_method = "sheinker" # 'sheinker' or 'ramen'
 sspTol = 15         # Cosine similarity threshold for identifying multi-source points (MSPs) and ambient single-source points (ASSPs)
 order = np.inf      # Order of the HOG algorithm
 flip = False        # Flip the data before applying the algorithm
-
+condition  = True   # Condition the coupling matrix
 
 def clean(B, triaxial = True):
     """
@@ -125,22 +125,26 @@ def HOG(B):
             G_sc = (gradients[j+1] - gradients[j]) / (a_ij - 1)
             gradients.append(G_sc)
 
-    global weights
+    global weights;
     if(weights is None):
         weights = np.ones(n_sensors)
     W = np.diag(weights)
+    aii = np.copy(K)
 
-    factors = np.geomspace(1, 100, 100)
-    cond = np.linalg.cond(K)
-    for factor in factors:
-        K_temp = K.copy()
-        for i in range(1, order):
-            for j in range(i, n_sensors):
-                K_temp[j, i] *= factor**j
+    if(condition):
+        aii = np.copy(K)
+        factors = np.geomspace(1, 100, 100)
+        cond = np.linalg.cond(K.T @ W @ K)
+        for factor in factors:
+            K_temp = aii.copy()
+            for i in range(1, order):
+                for j in range(i, n_sensors):
+                    K_temp[j, i] *= K_temp[j, i]*factor
 
-        if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
-            K = K_temp
-            cond = np.linalg.cond(K)
+            if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
+                K = K_temp
+                cond = np.linalg.cond(K.T @ W @ K)
+
     result = np.linalg.solve(K.T @ W @ K, K.T @ W @ B)
     return(result[0])
 
@@ -149,7 +153,7 @@ def findGain(B):
     if gain_method.lower() == "sheinker":
         return findGainShienker(B.real)
     elif gain_method.lower() == "ramen":
-        return findGainRAMEN(B)
+        return findGainRAMEN(B, sspTol=sspTol)
     else:
         raise ValueError("Invalid gain method")
 
@@ -160,7 +164,7 @@ def findGainShienker(B):
     k_hat = c1/c0
     return(k_hat)
 
-def findGainRAMEN(B):
+def findGainRAMEN(B, sspTol=15):
         B_filtered = np.copy(B)
         
         # Identify MSPs and zero them out
@@ -171,7 +175,7 @@ def findGainRAMEN(B):
         ASSP_Bools = identify_ASSP(B_filtered, sspTol=sspTol)
         B_filtered[:, ASSP_Bools] = 0
 
-        k_hat = np.nanmean(np.abs(B_filtered[1]) / np.abs(B_filtered[0]), axis=-1)
+        k_hat = np.sum(np.abs(B_filtered[1]) / np.sum(np.abs(B_filtered[0])), axis=-1)
         if(np.isnan(k_hat) or np.isinf(k_hat)):
             k_hat = 1.1
         return(k_hat)
