@@ -157,6 +157,7 @@ def weightedReconstruction(sig):
     
     "Define CVXPY parameters"
     A = cp.Parameter(shape=centroids.T.shape, value=centroids.T, complex=True)
+    print(np.round(A.value,2))
     b = cp.Parameter(shape = magnetometers, complex=True)   
     
     "Pack constants together"
@@ -221,7 +222,7 @@ def clusterNSGT(sig):
     "Take Non-stationary Gabor Transform"
     B = nsgt.forward(sig)
     B = np.array(B, dtype=object)
-    B = np.vstack((np.hstack(B[i]) for i in range(magnetometers)))
+    B = np.vstack([np.hstack(B[i]) for i in range(magnetometers)])
     
     "Filter Low Energy Points"
     B_m = filterMagnitude(B)
@@ -239,7 +240,7 @@ def clusterNSGT(sig):
     "Project to Unit Hypersphere and Join with Argument"
     norms = np.sqrt((B_abs**2).sum(axis=0,keepdims=True))
     B_projected = np.where(norms!=0,B_abs/norms,0.)
-    H_tk =  np.vstack((B_projected,B_cos, B_sin))
+    H_tk =  np.vstack([B_projected,B_cos, B_sin])
         
     "Cluster Data"
     (centroids, clusters) = clusterData(H_tk)
@@ -259,8 +260,6 @@ def clusterNSGT(sig):
      
     "Update Global Mixing Matrix"
     updateCentroids(mixingMatrix.T)
-    print("Number of Clusters: ", len(clusterCentroids))
-    print(mixingMatrix.T)
     return
 
 """Define a function to demix a signal using non-stationary Gabor transform (NSGT)"""
@@ -280,7 +279,7 @@ def demixNSGT(sig):
     shapes = np.array([i.shape[-1] for i in B[0]])
     
     "Stack and concatenate the subbands from each channel into a matrix"
-    B_nsgt = np.vstack((np.hstack(B[i]) for i in range(magnetometers)))
+    B_nsgt = np.vstack([np.hstack(B[i]) for i in range(magnetometers)])
     
     "Separate Signals"
     B_reconstructed = weightedReconstruction(B_nsgt)
@@ -324,7 +323,6 @@ def updateCentroids(newCentroids, learnRate = 0.1):
             "Add New Cluster"        
             if(newC):
                 clusterCentroids[len(clusterCentroids)] = centroid
-            
     return(np.array([clusterCentroids[i] for i in clusterCentroids.keys()]))
     
 "UTILITY FUNCTIONS"   
