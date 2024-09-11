@@ -52,7 +52,7 @@ def cleanWAICUP(sensors):
     "Detrend"
     if(detrend):
         trend = uniform_filter1d(sensors, size=uf)
-        sensors -= trend
+        sensors = sensors - trend
     
     if(sensors.shape[0] == 2): result = dual(sensors, dt, dj)
     else: result = multi(sensors, dt, dj)

@@ -1,7 +1,8 @@
 """
 Author: Matt Finley, Alex Hoffmann
-Last Update: 9/19/2023
-Description: Todo
+Last Update: 5/17/2023
+Description: Ness M-SSA applies M-SSA to the high frequency components and
+             Ness gradiometry to the low frequency components.
 
 General Parameters
 ----------
@@ -22,34 +23,42 @@ from pymssa import MSSA
 
 "Parameters"
 uf = 400                                # Uniform Filter Size for detrending
-detrend = False                         # Detrend the data
+detrend = True                          # Detrend the data
 
 "Algorithm Parameters"
 window_size = 400                       # Window size for MSSA
 alpha = 0.05                            # Correlation threshold for identifying interference
 variance_explained_threshold = 0.995    # Variance explained threshold for MSSA
+aii = None                              # Coupling matrix between the sensors and sources for NESS
 
 def clean(B, triaxial = True):
     """
     B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
     triaxial: boolean for whether to use triaxial or uniaxial ICA
     """
+    
+    "Detrend and Clean Trend"
+    if(detrend): 
+        trend = uniform_filter1d(B, size=uf)
+        B = B - trend
+        trend = cleanTrend(trend)
+
+    "Apply M-SSA"
     if(triaxial):
         result = np.zeros((3, B.shape[-1]))
         for axis in range(3):
             result[axis] = cleanMSSA(B[:,axis,:])
-        return(result)
     else:
         result = cleanMSSA(B)
-        return(result)
+
+    "Restore Trend"
+    if(detrend):
+        result += trend
+
+    return(result)
     
 
 def cleanMSSA(sig):
-    "Detrend"
-    if(detrend): 
-        trend = uniform_filter1d(sig, size=uf)
-        sig = sig - trend
-    
     "Create MSSA Object and Fit"
     mssa = MSSA(n_components='variance_threshold',
                variance_explained_threshold=variance_explained_threshold,
@@ -73,8 +82,18 @@ def cleanMSSA(sig):
         else:
             amb_mf += components[c]
             
-    "Retrend"
-    if(detrend):
-        amb_mf += np.mean(trend, axis = 0)
-    
+
     return(amb_mf)
+
+
+def cleanTrend(B, triaxial = True):
+    if(aii is None):
+        raise("NESS.aii must be set before calling clean()")
+    
+    if(triaxial):
+        result = np.multiply((B[0] - np.multiply(B[1], aii[:, np.newaxis])), (1/(1-aii))[:, np.newaxis])
+
+    else:
+        result = np.multiply((B[0] - np.multiply(B[1], aii)), (1/(1-aii)))
+        
+    return(result)

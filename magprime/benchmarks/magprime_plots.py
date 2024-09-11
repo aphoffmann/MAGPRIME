@@ -182,9 +182,10 @@ def plotCubeSats():
     plt.tight_layout()
     plt.show()
 
-def pdfSubplots():
+def pdfSubplotsA():
+    # Load the data
     df = pd.read_csv("magprime_results_A.csv")
- 
+
     # Parse data arrays
     ica_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_ica'].to_numpy()])
     mssa_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_mssa'].to_numpy()])
@@ -196,42 +197,100 @@ def pdfSubplots():
     waicup_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_waicup'].to_numpy()])
     b1_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_b1'].to_numpy()])
     b2_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_b2'].to_numpy()])
-    
-    fig, axes = plt.subplots(5, 2, figsize=(15, 10), sharex=True, sharey=True)
-    fig.suptitle("Distributions of SNR in Gradiometry Configuration", fontsize=16, y=1.02)
+
+    # Create the plot
+    fig, axes = plt.subplots(5, 2, figsize=(15, 10), sharex=True, sharey=True, dpi = 200)
+    fig.suptitle("Distribution of SNR in Gradiometry Configuration", fontsize=22, y=.98)
 
     # List of algorithm labels
-    algorithms = ["ICA", "MSSA", "NESS", "PiCoG", "Sheinker", "REAM",  "WAICUP","UBSS", "BUS", "BOOM"]
+    algorithms = ["ICA", "MSSA", "NESS", "PiCoG", "Sheinker", "REAM", "WAICUP", "UBSS", "BUS", "BOOM"]
 
     # List of data arrays
-    data_arrays = [ica_snr, mssa_snr, ness_snr, picog_snr, sheinker_snr, ream_snr,  waicup_snr,ubss_snr, b1_snr, b2_snr]
+    data_arrays = [ica_snr, mssa_snr, ness_snr, picog_snr, sheinker_snr, ream_snr, waicup_snr, ubss_snr, b1_snr, b2_snr]
 
     # Colors for each subplot
     linestyles = ['dashed', 'solid', 'dotted']
     colors = sns.color_palette("husl", len(algorithms))
-    axs = ["X","Y","Z"]
+    axs = ["X", "Y", "Z"]
+
     # Plot each algorithm's SNR distribution in a separate subplot
     for i, (data, algorithm) in enumerate(zip(data_arrays, algorithms)):
         row, col = divmod(i, 2)
         for axis in range(3):
-            sns.distplot(data[:, axis], hist=False, rug=False, color=colors[i], label=f"{axs[axis]}-Axis", ax=axes[row, col], kde_kws={'linestyle': linestyles[axis]})
-        axes[row, col].set_xlabel("SNR (dB)", fontsize=12)
-        axes[row, col].set_ylabel("Probability density", fontsize=12)
-        axes[row, col].text(0.5, 0.8, f"{algorithm}", fontsize=14, fontweight='bold', transform=axes[row, col].transAxes, ha="center")
-        axes[row, col].legend()
+            sns.kdeplot(data[:, axis], color=colors[i], linestyle=linestyles[axis], ax=axes[row, col], label=f"{axs[axis]}-Axis",)
+        axes[row, col].set_xlabel("SNR (dB)", fontsize=16)
+        axes[row, col].set_ylabel("Density", fontsize=16)
+        axes[row, col].text(0.5, 0.95, f"{algorithms[i]}", transform=axes[row, col].transAxes, fontsize=14, fontweight='bold', ha='center', va='top', bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
+        axes[row, col].grid()
+        axes[row, col].tick_params(axis='both', which='major', labelsize=12)
+        axes[row, col].set_xlim(-61,61)
+        #axes[row, col].legend( fontsize=14, loc =1)
 
+    lines = [plt.Line2D([0], [0], color='black', linestyle=linestyle) for linestyle in linestyles]
+    labels = [f"{axis}-Axis" for axis in axs]
+    fig.legend(lines, labels, loc='lower center', fontsize=16, ncol=3, bbox_to_anchor=(0.5, -0.02))
 
-    axes[2, 0].xaxis.label.set_visible(False)
-    axes[1, 0].xaxis.label.set_visible(False) 
-    axes[0, 0].xaxis.label.set_visible(False)
-    axes[1, 1].xaxis.label.set_visible(False)   
-
-    # Adjust layout
-    plt.tight_layout()
     plt.subplots_adjust(top=0.9)
 
     # Show the plot
     plt.show()
+
+def pdfSubplotsB():
+    # Load the data
+    df = pd.read_csv("magprime_results_B.csv")
+
+    # Parse data arrays
+    ica_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_ica'].to_numpy()])
+    mssa_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_mssa'].to_numpy()])
+    ness_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_ness'].to_numpy()])
+    picog_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_picog'].to_numpy()])
+    sheinker_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_sheinker'].to_numpy()])
+    ream_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_ream'].to_numpy()])
+    ubss_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_ubss'].to_numpy()])
+    waicup_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_waicup'].to_numpy()])
+    b1_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_b1'].to_numpy()])
+    b2_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_b2'].to_numpy()])
+    b3_snr = np.array([np.fromstring(arg[1:-1], sep=' ') for arg in df['snr_b3'].to_numpy()])
+
+    # Create the plot
+    fig, axes = plt.subplots(6, 2, figsize=(15, 10), sharex=True, sharey=True, dpi = 200)
+    fig.suptitle("Distribution of SNR in Boomless Configuration", fontsize=22, y=.98)
+
+    # List of algorithm labels
+    algorithms = ["ICA", "MSSA", "NESS", "PiCoG", "Sheinker", "REAM", "WAICUP", "UBSS", "M1", "M2", "M3"]
+
+    # List of data arrays
+    data_arrays = [ica_snr, mssa_snr, ness_snr, picog_snr, sheinker_snr, ream_snr, waicup_snr, ubss_snr, b1_snr, b2_snr, b3_snr]
+
+    # Colors for each subplot
+    linestyles = ['dashed', 'solid', 'dotted']
+    colors = sns.color_palette("husl", len(algorithms))
+    axs = ["X", "Y", "Z"]
+
+    # Plot each algorithm's SNR distribution in a separate subplot
+    for i, (data, algorithm) in enumerate(zip(data_arrays, algorithms)):
+        row, col = divmod(i, 2)
+        for axis in range(3):
+            sns.kdeplot(data[:, axis], color=colors[i], linestyle=linestyles[axis], ax=axes[row, col], label=f"{axs[axis]}-Axis",)
+        axes[row, col].set_xlabel("SNR (dB)", fontsize=16)
+        axes[row, col].set_ylabel("Density", fontsize=16)
+        axes[row, col].text(0.5, 0.95, f"{algorithms[i]}", transform=axes[row, col].transAxes, fontsize=14, fontweight='bold', ha='center', va='top', bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
+        axes[row, col].grid()
+        axes[row, col].tick_params(axis='both', which='major', labelsize=12)
+        axes[row, col].set_xlim(-61,61)
+        #axes[row, col].legend( fontsize=14, loc =1)
+
+    axes[-1,-1].set_visible(False); axes[4,1].tick_params(axis='x', which='both', labelbottom=True)
+    axes[4, 1].set_xlabel("SNR (dB)", fontsize=14)
+    lines = [plt.Line2D([0], [0], color='black', linestyle=linestyle) for linestyle in linestyles]
+    labels = [f"{axis}-Axis" for axis in axs]
+    fig.legend(lines, labels, loc='lower center', fontsize=16, ncol=3, bbox_to_anchor=(0.5, -0.02))
+
+    plt.subplots_adjust(top=0.9)
+
+    # Show the plot
+    plt.show()
+
 
 
 def pdfs(axis = 0):

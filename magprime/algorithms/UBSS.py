@@ -61,11 +61,9 @@ def clean(B, triaxial = True):
     Output:
         result: reconstructed ambient field without the spacecraft-generated fields (axes, n_samples)
     """
-    #
-    print("CPU COUNT: ", mp.cpu_count())
     if(detrend):
         trend = uniform_filter1d(B, size=uf, axis = -1)
-        B -= trend
+        B = B - trend
 
     if(triaxial):
         result = np.zeros((3, B.shape[-1]))
@@ -310,21 +308,22 @@ def demixNSGT(sig):
  
 def updateCentroids(newCentroids, learnRate = 0.1):
     "Check if Clusters are in the global mixing matrix"
-    for centroid in newCentroids.T:
-        
-        newC = True
-        for cluster in clusterCentroids:
-            a = np.real(clusterCentroids[cluster]) / np.linalg.norm(clusterCentroids[cluster]);
-            b = np.real(centroid)/np.linalg.norm(centroid)
-            angle = np.arccos(np.clip(np.dot(a, b), -1.0, 1.0))
-            if(angle < np.deg2rad(sspTol)):
-                if(cluster != 0):
-                    clusterCentroids[cluster] = clusterCentroids[cluster] + learnRate * (centroid - clusterCentroids[cluster])
-                newC = False
-        
-        "Add New Cluster"        
-        if(newC):
-            clusterCentroids[len(clusterCentroids)] = centroid
+    if newCentroids.T.size > 0: ## Check if no new centroids
+        for centroid in newCentroids.T:
+            
+            newC = True
+            for cluster in clusterCentroids:
+                a = np.real(clusterCentroids[cluster]) / np.linalg.norm(clusterCentroids[cluster]);
+                b = np.real(centroid)/np.linalg.norm(centroid)
+                angle = np.arccos(np.clip(np.dot(a, b), -1.0, 1.0))
+                if(angle < np.deg2rad(sspTol)):
+                    if(cluster != 0):
+                        clusterCentroids[cluster] = clusterCentroids[cluster] + learnRate * (centroid - clusterCentroids[cluster])
+                    newC = False
+            
+            "Add New Cluster"        
+            if(newC):
+                clusterCentroids[len(clusterCentroids)] = centroid
             
     return(np.array([clusterCentroids[i] for i in clusterCentroids.keys()]))
     
