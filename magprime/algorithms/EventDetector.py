@@ -55,17 +55,8 @@ def anomaly_detection(input_data, sampling_rate_hz, window_length_sec, nu_value)
         input_data, _ = detrend(input_data, uf)
 
     window_length = int(window_length_sec * sampling_rate_hz)
-    
+    segments = [input_data[i:i+window_length] for i in range(0,int(window_length * np.floor(len(input_data)/window_length)),window_length)] 
     # Ensure that the input_data is divisible by window_length
-    num_windows = len(input_data) // window_length
-    trimmed_length = num_windows * window_length
-    input_data = input_data[:trimmed_length]
-    
-    # Create windowed segments
-    segments = np.array([
-        input_data[i*window_length : (i+1)*window_length]
-        for i in range(num_windows)
-    ])
     
     # Optional FFT Transformation
     if use_fft:
