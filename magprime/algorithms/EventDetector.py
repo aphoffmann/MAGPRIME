@@ -73,10 +73,8 @@ def anomaly_detection(input_data, sampling_rate_hz, window_length_sec, nu_value)
         segments_fft = np.abs(rfft(segments, axis=1))
         # Optionally, you can normalize or scale the FFT features here
         features = segments_fft
-        print("FFT applied")
     else:
         features = segments
-        print("FFT not applied")
 
     # Dimensionality Reduction via PCA
     pca = PCA(n_components=2)
