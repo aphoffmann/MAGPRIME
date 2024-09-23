@@ -43,7 +43,7 @@ def clean(B, triaxial = True):
 
     if(detrend):
         trend = uniform_filter1d(B, size=uf, axis = -1)
-        B -= trend
+        B = B - trend
 
     if(triaxial):
         result = np.zeros(B.shape[1:])

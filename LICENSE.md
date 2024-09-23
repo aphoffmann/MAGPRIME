@@ -1,0 +1,1 @@
+MAGPRIME: MAGnetic signal PRocessing, Interference Mitigation, and Enhancement © 2024 by Alex Paul hoffmann is licensed under CC BY-NC 4.0 

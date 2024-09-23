@@ -61,11 +61,9 @@ def clean(B, triaxial = True):
     Output:
         result: reconstructed ambient field without the spacecraft-generated fields (axes, n_samples)
     """
-    #
-    print("CPU COUNT: ", mp.cpu_count())
     if(detrend):
         trend = uniform_filter1d(B, size=uf, axis = -1)
-        B -= trend
+        B = B - trend
 
     if(triaxial):
         result = np.zeros((3, B.shape[-1]))
@@ -101,11 +99,11 @@ def processData(A, b, n_clusters, data):
     problem = cp.Problem(objective, constraints)
     b.value = data
 
-    "Check if ambient SSP"          
-    norms = np.abs(data)
-    cos_sim = np.dot(norms, np.ones(norms.shape)) / (np.linalg.norm(norms) * np.linalg.norm(np.ones(norms.shape)))
-    threshold = np.cos(np.deg2rad(8))
-    ASSP = cos_sim >= threshold
+    "Check if Single Source Point"          
+    b_real = np.real(data); b_imag = np.imag(data)
+    cos_sim = np.dot(b_real, b_imag) / (np.linalg.norm(b_real) * np.linalg.norm(b_imag))
+    threshold = np.cos(np.deg2rad(sspTol))
+    SSP = cos_sim >= threshold
     
     x_ratio = 0
     
@@ -113,6 +111,7 @@ def processData(A, b, n_clusters, data):
     for i in range(cs_iters):
         try:
             problem.solve(warm_start=True)
+            if(problem.status == 'optimal'): break
         except:
             "Check if x is None"
             if(x.value is None):
@@ -123,21 +122,22 @@ def processData(A, b, n_clusters, data):
             #raise Exception(string)
         
 
-        if(ASSP): 
+        if(SSP): 
             "Make W[0] Smaller"
             w = cp.inv_pos(cp.abs(x) + 0.01)
-            i+=1
         else:
-            "Check Optimal Convergence"
-            if(problem.status == 'optimal'): break
-
-            "Calculate signal to noise ratio"
-            x_hat = np.abs(x.value) 
-            x_ratio = np.sum(x_hat[1:])/( x_hat[0]+ 0.01)
-            
-            "Update and clip ambient field weight"
-            w.value[0] = w.value[0] + .1*(x_ratio - w.value[0])
-            w.value[0]  = np.clip(w.value[0], .01, 100)
+            delta = calculate_delta_s(A.value, x.value)
+            if(delta < np.sqrt(2) - 1):
+                w = cp.inv_pos(cp.abs(x) + 0.01)
+                continue
+            else:
+                "Calculate signal to noise ratio"
+                x_hat = np.abs(x.value) 
+                x_ratio = np.sum(x_hat[1:])/( x_hat[0]+ 0.01)
+                
+                "Update and clip ambient field weight"
+                w.value[0] = w.value[0] + .1*(x_ratio - w.value[0])
+                w.value[0]  = np.clip(w.value[0], .01, 100)
 
     "Check if boom constraint is violated"
     if(boom and np.abs(x.value[0]) >= np.abs(b.value[boom])):
@@ -157,6 +157,7 @@ def weightedReconstruction(sig):
     
     "Define CVXPY parameters"
     A = cp.Parameter(shape=centroids.T.shape, value=centroids.T, complex=True)
+    print(np.round(A.value,2))
     b = cp.Parameter(shape = magnetometers, complex=True)   
     
     "Pack constants together"
@@ -221,7 +222,7 @@ def clusterNSGT(sig):
     "Take Non-stationary Gabor Transform"
     B = nsgt.forward(sig)
     B = np.array(B, dtype=object)
-    B = np.vstack((np.hstack(B[i]) for i in range(magnetometers)))
+    B = np.vstack([np.hstack(B[i]) for i in range(magnetometers)])
     
     "Filter Low Energy Points"
     B_m = filterMagnitude(B)
@@ -239,7 +240,7 @@ def clusterNSGT(sig):
     "Project to Unit Hypersphere and Join with Argument"
     norms = np.sqrt((B_abs**2).sum(axis=0,keepdims=True))
     B_projected = np.where(norms!=0,B_abs/norms,0.)
-    H_tk =  np.vstack((B_projected,B_cos, B_sin))
+    H_tk =  np.vstack([B_projected,B_cos, B_sin])
         
     "Cluster Data"
     (centroids, clusters) = clusterData(H_tk)
@@ -278,7 +279,7 @@ def demixNSGT(sig):
     shapes = np.array([i.shape[-1] for i in B[0]])
     
     "Stack and concatenate the subbands from each channel into a matrix"
-    B_nsgt = np.vstack((np.hstack(B[i]) for i in range(magnetometers)))
+    B_nsgt = np.vstack([np.hstack(B[i]) for i in range(magnetometers)])
     
     "Separate Signals"
     B_reconstructed = weightedReconstruction(B_nsgt)
@@ -306,22 +307,22 @@ def demixNSGT(sig):
  
 def updateCentroids(newCentroids, learnRate = 0.1):
     "Check if Clusters are in the global mixing matrix"
-    for centroid in newCentroids.T:
-        
-        newC = True
-        for cluster in clusterCentroids:
-            a = np.real(clusterCentroids[cluster]) / np.linalg.norm(clusterCentroids[cluster]);
-            b = np.real(centroid)/np.linalg.norm(centroid)
-            angle = np.arccos(np.clip(np.dot(a, b), -1.0, 1.0))
-            if(angle < np.deg2rad(sspTol)):
-                if(cluster != 0):
-                    clusterCentroids[cluster] = clusterCentroids[cluster] + learnRate * (centroid - clusterCentroids[cluster])
-                newC = False
-        
-        "Add New Cluster"        
-        if(newC):
-            clusterCentroids[len(clusterCentroids)] = centroid
+    if newCentroids.T.size > 0: ## Check if no new centroids
+        for centroid in newCentroids.T:
             
+            newC = True
+            for cluster in clusterCentroids:
+                a = np.real(clusterCentroids[cluster]) / np.linalg.norm(clusterCentroids[cluster]);
+                b = np.real(centroid)/np.linalg.norm(centroid)
+                angle = np.arccos(np.clip(np.dot(a, b), -1.0, 1.0))
+                if(angle < np.deg2rad(sspTol)):
+                    if(cluster != 0):
+                        clusterCentroids[cluster] = clusterCentroids[cluster] + learnRate * (centroid - clusterCentroids[cluster])
+                    newC = False
+            
+            "Add New Cluster"        
+            if(newC):
+                clusterCentroids[len(clusterCentroids)] = centroid
     return(np.array([clusterCentroids[i] for i in clusterCentroids.keys()]))
     
 "UTILITY FUNCTIONS"   
@@ -373,3 +374,19 @@ def rip_check(A, k=1, p=1):
         ratio = np.linalg.norm(A @ x, p) / np.linalg.norm(x, p) # compute ratio of norms
         delta = max(delta, abs(ratio - 1)) # update RIP constant if ratio is larger than previous value
     return delta # return RIP constant
+
+def calculate_delta_s(A, x):
+    # A: sensing matrix
+    # x: signal estimate (vector)
+    # Calculate the norm of A @ x and x
+    Ax_norm = np.linalg.norm(A @ x, 2)
+    x_norm = np.linalg.norm(x, 2)
+    
+    # Calculate the ratio of the norms squared
+    ratio = (Ax_norm / x_norm) ** 2
+    
+    # Estimate the RIP constant delta_s for the current support of x
+    # It's the maximum deviation of the ratio from 1
+    delta_s = max(abs(ratio - 1), abs(1 - ratio))
+    
+    return delta_s

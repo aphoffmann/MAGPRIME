@@ -48,7 +48,7 @@ def cleanAxis(B):
     "Remove Trend"
     if(detrend): 
         trend = uniform_filter1d(B, size=uf)
-        B -= trend
+        B = B - trend
     
     "Apply ICA"
     X = B.T # (n_samples, n_features)

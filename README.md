@@ -19,7 +19,7 @@ MAGPRIME (MAGnetic signal PRocessing, Interference Mitigation, and Enhancement) 
 
 ## Installation
 
-MAGPRIME requires Python 3.9 or later. You can install the library using `pip`:
+MAGPRIME requires Build Tools for Visual Studio 2022 and Python 3.9 or later. You can install the library using `pip`:
 
 ```bash
 pip install git+https://github.com/aphoffmann/MAGPRIME.git
@@ -38,6 +38,8 @@ git clone https://github.com/aphoffmann/MAGPRIME.git
 cd MAGPRIME
 pip install .
 ```
+
+The Build Tools for Visual Studio 2022 can be downloaded from [https://visualstudio.microsoft.com/downloads/](https://visualstudio.microsoft.com/downloads/)
 
 ## Usage
 To use MAGPRIME, simply import the desired noise removal algorithm and apply it to your magnetic field data. For example, to use wavelet-based denoising
