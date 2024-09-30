@@ -22,7 +22,7 @@ boom : index of boom magnetometer in (n_sensors, axes, n_samples) array
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
-import hdbscan
+from sklearn.cluster import HDBSCAN
 import cvxpy as cp
 import collections
 import multiprocessing as mp
@@ -51,7 +51,7 @@ magnetometers = 3
 result = None
 clusterCentroids = collections.OrderedDict({0:
                        np.ones(magnetometers) })
-hdbscan = hdbscan.HDBSCAN(min_samples = 4)
+hdbscan = HDBSCAN(min_samples = 4)
 
 def clean(B, triaxial = True):
     """
