@@ -19,12 +19,17 @@ aii = None
 weights = None
 gain_method = 'sheinker' # 'sheinker' or 'ramen'
 order = np.inf
+flip = False        # Flip the data before applying the algorithm
+treat_matrix = True
 
 def clean(B, triaxial = True):
     """
     B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
     triaxial: boolean for whether to use triaxial or uniaxial ICA
     """
+
+    if(flip):
+        B = np.flip(np.copy(B), axis = 0) 
 
     if(triaxial):
         result = np.zeros((3, B.shape[-1]))
@@ -58,6 +63,7 @@ def cleanHOG(B):
     gradients = [None, None]
     for i in range(1,n_sensors):
         a_ij = findGain(B[[i-1,i]])
+        a_ij = findOptimalK(a_ij)
         B_sc = (B[i] - B[i-1]) / (a_ij - 1)
         gradients.append(B_sc)
 
@@ -65,11 +71,12 @@ def cleanHOG(B):
     for i in range(2,order): # Column
         for j in range(i,n_sensors): # Row
             "Find Gain K[i,j]"
-            K[j,i] = findGain(np.array([gradients[i],gradients[j+1]]))
+            K[j,i] = findGain(np.array([gradients[i], gradients[j+1]])) 
 
         "Recalculate Higher Order Gradients for next iteration"
         for j in range(i,n_sensors):
             a_ij = findGain(np.array([gradients[j], gradients[j+1]]))
+            a_ij = findOptimalK(a_ij)
             G_sc = (gradients[j+1] - gradients[j]) / (a_ij - 1)
             gradients.append(G_sc)
 
@@ -81,22 +88,37 @@ def cleanHOG(B):
         weights = np.ones(n_sensors)
     W = np.diag(weights)
 
-    factors = np.geomspace(1, 100, 100)
-    cond = np.linalg.cond(K.T @ W @ K)
-    for factor in factors:
-        K_temp = K.copy()
-        for i in range(1, order):
-            for j in range(i, n_sensors):
-                K_temp[j, i] *= factor
+    if(treat_matrix):
+        factors = np.geomspace(1, 100, 100)
+        cond = np.linalg.cond(K.T @ W @ K)
+        for factor in factors:
+            K_temp = K.copy()
+            for i in range(1, order):
+                for j in range(i, n_sensors):
+                    K_temp[j, i] *= factor
 
-        if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
-            print("Condition number of K.T @ W @ K: ", np.linalg.cond(K_temp.T @ W @ K_temp), ", Factor: ", factor)
-            K = K_temp
-            cond = np.linalg.cond(K.T @ W @ K)
+            if np.linalg.cond(K_temp.T @ W @ K_temp) < cond:
+                #print("Condition number of K.T @ W @ K: ", np.linalg.cond(K_temp.T @ W @ K_temp), ", Factor: ", factor)
+                K = K_temp
+                cond = np.linalg.cond(K.T @ W @ K)
 
     aii = K
     result = np.linalg.solve(K.T @ W @ K, K.T @ W @ B)
     return(result[0])
+
+def findOptimalK(k):
+    if not treat_matrix: return k
+
+    K = np.array([[1,1],[1,k]])
+    factors = np.geomspace(1, 100, 20)
+    cond = np.linalg.cond(K.T @ K)
+    for factor in factors:
+        K_temp = K.copy()
+        K_temp[1,1] *= factor
+        if np.linalg.cond(K_temp.T @ K_temp) < cond:
+            K = K_temp
+            cond = np.linalg.cond(K.T @ K)
+    return(K[1,1])
 
 
 def findGain(B):
@@ -110,8 +132,8 @@ def findGain(B):
 
 def findGainSheinker(B):
     d = B[1]-B[0]
-    c0 = np.sum(d*B[0])
-    c1 = np.sum(d*B[1])
+    c0 = np.abs(np.sum(d*B[0]))
+    c1 = np.abs(np.sum(d*B[1]))
     k_hat = c1/c0
     return(k_hat)
 
@@ -133,7 +155,7 @@ def findGainRamen(B, fs=1, sspTol=15):
     B_filtered = inverse_wavelet_transform(filtered_w, w)
     
     # Calculate Coupling Coefficients
-    k_hat = np.nanmean(B_filtered[0] / B_filtered[1], axis=-1)
+    k_hat = np.nanmean(np.abs(B_filtered[1]) / np.abs(B_filtered[0]), axis=-1)
 
     return k_hat
 
