@@ -81,8 +81,6 @@ def dual(sig, dt, dj):
     wn1 = w1.wavelet_transform.real
     wn2 = w2.wavelet_transform.real
 
-    print(w1.fourier_periods[-1], w2.fourier_periods[-1])
-    
     "Sheinker and Moldwin's Algorithm"
     dw = wn2-wn1
     wc1 = np.sum(dw*wn1, axis=1)
@@ -111,7 +109,9 @@ def multi(sig, dt, dj):
     w_obj = []
     for i in range(len(pairs)):
         waicup_level1[i] = dual(np.vstack((sig[pairs[i][0]], sig[pairs[i][1]])), dt, dj)
-        w_obj.append(WaveletAnalysis(waicup_level1[i], dt=dt, frequency=True, dj = dj))
+        wave_obj = WaveletAnalysis(waicup_level1[i], dt=dt, frequency=True, dj = dj)
+        wave_obj.lowest_freq = lowest_freq
+        w_obj.append(wave_obj)
         
     w = [wav.wavelet_transform.real for wav in w_obj]
         
