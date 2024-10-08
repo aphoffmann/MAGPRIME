@@ -29,6 +29,8 @@ detrend = True     # Detrend the data
 fs = 1              # Sampling Frequency
 dj = 1/12           # Wavelet Scale Spacing
 scales = None       # Scales used in the wavelet transform
+lowest_freq = None  # Lowest frequency in the wavelet transform
+boom = None         # Trend to use during retrending process
 
 def clean(B, triaxial = True):
     """
@@ -59,7 +61,8 @@ def cleanWAICUP(sensors):
     
     "Retrend"
     if(detrend):
-        result += np.mean(trend, axis = 0)
+        if(boom is not None): result += trend[boom]
+        else: result += np.mean(trend, axis = 0)
 
     return(result)
     
@@ -68,10 +71,17 @@ def dual(sig, dt, dj):
     "Create Wavelets"
     w1 = WaveletAnalysis(sig[0], dt=dt, frequency=True, dj = dj, unbias=False, mask_coi = True)
     w2 = WaveletAnalysis(sig[1], dt=dt, frequency=True, dj = dj, unbias=False, mask_coi = True)
+
+    if(lowest_freq is not None):
+        w1.lowest_freq = lowest_freq
+        w2.lowest_freq = lowest_freq
+        
     
     "Transform signals into wavelet domain"
     wn1 = w1.wavelet_transform.real
     wn2 = w2.wavelet_transform.real
+
+    print(w1.fourier_periods[-1], w2.fourier_periods[-1])
     
     "Sheinker and Moldwin's Algorithm"
     dw = wn2-wn1
