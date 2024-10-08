@@ -117,13 +117,9 @@ def multi(sig, dt, dj):
         
     "Iterate through Level 1 WAICUP"
     w = np.array(w)
-    wn_clean = np.zeros(w[0].shape)
-
-    "Iterate through every single datapoint"
-    for row in range(wn_clean.shape[0]):
-        for col in range(wn_clean.shape[1]):
-            #print(row,col, wn.shape, wn_clean.shape)
-            wn_clean[row,col] = w[np.argmin(np.abs(w[:,row,col])), row, col] #np.argmin(np.abs(wn[:,row,col]))
+    abs_w = np.abs(w)
+    indices = np.argmin(abs_w, axis=0)
+    wn_clean = np.take_along_axis(w, indices[None, :, :], axis=0)[0]
     
     "Reconstruct Ambient Magnetic Field Signal"
     W_n = wn_clean

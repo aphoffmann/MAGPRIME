@@ -13,7 +13,6 @@ REQUIREMENTS = [
     'cvxpy',
     'scikit-learn',
     'tqdm',
-    'hdbscan',
     'magpylib',
     'keyboard',
     'wavelets @ git+https://github.com/aphoffmann/wavelets.git',
@@ -31,7 +30,7 @@ DEPENDENCY_LINKS = [
 
 setup(
     name='magprime',
-    version='0.9981',
+    version='0.9995',
     description="Magnetic signal PRocessing, Interference Mitigation, and Enhancement (MAGPRIME)",
     author="Alex Paul Hoffmann",
     author_email='aphoff@umich.edu',
