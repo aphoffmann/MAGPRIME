@@ -47,6 +47,24 @@ def clean(B, triaxial = True):
 
     return(result)
 
+def cleanNeubauer2(B):
+    n_sensors, axes, n_samples = B.shape
+
+    # Compute rho coefficients and sorted indices
+    mat_6b, sorted_indices = compute_mat_6b(spacecraft_center, mag_positions)  # (n_sensors,)
+
+    # Sort B according to sorted_indices
+    B_sorted = B[sorted_indices, :, :]  # (n_sensors, axes, n_samples)
+
+    det_mat6b = np.linalg.det(mat_6b)
+    inv_mat6b = np.linalg.inv(mat_6b)
+    adj_mat6b = det_mat6b * inv_mat6b.T
+    C_col1 = adj_mat6b[:, 0] 
+
+    B_amb = np.tensordot(C_col1, B_sorted, axes=([0], [0])) / det_mat6b
+
+    return B_amb
+
 def cleanNeubauer(B):
     """
     Cleans the magnetic field data using the Neubauer method.
