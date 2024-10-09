@@ -17,6 +17,7 @@ mag_positions : (n_sensors, 3) array of the positions of the magnetometers
 import numpy as np
 from scipy.ndimage import uniform_filter1d
 from scipy.optimize import minimize
+from sklearn.decomposition import PCA
 
 "General Parameters"
 uf = 400            # Uniform Filter Size for detrending
@@ -62,7 +63,7 @@ def cleanNeubauer(B):
         interference_cost,
         spacecraft_center,
         args=(np.copy(B), mag_positions),
-        method='Nelder-Mead',  # Simplex method suitable for non-smooth functions
+        method='Powell',  # Simplex method suitable for non-smooth functions
         options={'maxiter': 100, 'disp': True})
 
         # Final spacecraft center estimate
@@ -72,7 +73,7 @@ def cleanNeubauer(B):
     n_sensors, axes, n_samples = B.shape
 
     # Compute rho coefficients and sorted indices
-    mat_6b, sorted_indices = compute_mat_6b()  # (n_sensors,)
+    mat_6b, sorted_indices = compute_mat_6b(spacecraft_center, mag_positions)  # (n_sensors,)
 
     # Sort B according to sorted_indices
     B_sorted = B[sorted_indices, :, :]  # (n_sensors, axes, n_samples)
@@ -104,7 +105,7 @@ def interference_cost(spacecraft_center, B_obs, mag_positions):
 
     # Compute rho_k with the current spacecraft center estimate
     mat_6b, sorted_indices = compute_mat_6b(spacecraft_center, mag_positions)  # (n_sensors,)
-
+    
     # Sort B according to sorted_indices
     B_sorted = B_obs[sorted_indices, :, :]  # (n_sensors, axes, n_samples)
 
@@ -117,10 +118,33 @@ def interference_cost(spacecraft_center, B_obs, mag_positions):
             mat_6a[:, 0] = B_sorted[0, axis, sample]
             B_amb[axis, sample] = (1 / np.linalg.det(mat_6b)) * np.linalg.det(mat_6a)
     
-    # Estimate interference: pearson correlation between B_sorted[0] and B_amb
-    corr = np.abs(np.corrcoef(B_sorted[0] - B_sorted[-1], B_amb)[0, 1])
-    cost = corr
+    # Estimate Cost
+    interference = B_sorted[-1] - B_sorted[0]
+    
+    # Works kind of well
+    cost = 1/ np.log(np.sum(interference.flatten() - B_amb.flatten()) ** 2)
+    
+    # Try projection
+    #cost = pca_cost(interference.flatten(), B_amb.flatten())
+    
     return cost
+
+def pca_cost(interference, B_amb):
+    window_length = len(interference) // 20
+    traj_interference = [interference[i:i+window_length] for i in range(0,int(window_length * np.floor(len(interference)/window_length)),window_length)] 
+    traj_B_amb = [B_amb[i:i+window_length] for i in range(0,int(window_length * np.floor(len(B_amb)/window_length)),window_length)]
+
+    pca = PCA(n_components=1)
+    pca.fit(traj_interference)
+    x = pca.components_[0]
+
+    pca = PCA(n_components=1)
+    pca.fit(traj_B_amb)
+    y = pca.components_[0]
+
+    angle = np.abs(np.arccos(np.dot(y, x) / np.linalg.norm(y) / np.linalg.norm(x)) % np.pi)
+    return angle
+
 
 def compute_mat_6b(spacecraft_center = spacecraft_center, mag_positions = mag_positions):
     """
