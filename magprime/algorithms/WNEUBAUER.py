@@ -1,7 +1,7 @@
 """
 Author: Alex Hoffmann
-Last Update: 9/19/2023
-Description: Todo
+Last Update: 10/09/2024
+Description: Implemented Neubauers algorithm for cleaning magnetic field data in the wavelet domain
 
 General Parameters
 ----------
@@ -12,7 +12,10 @@ Algorithm Parameters
 ----------
 fs : sampling frequency
 dj : wavelet scale spacing
-scales : scales used in the wavelet transform (set by the algorithm)
+lowest_freq : lowest frequency in the wavelet transform
+boom : trend to use during retrending process
+flip : boolean for whether to flip the data before applying the algorithm
+
 """
 
 import numpy as np
@@ -28,7 +31,6 @@ detrend = True     # Detrend the data
 "Algorithm Parameters"
 fs = 1              # Sampling Frequency
 dj = 1/12           # Wavelet Scale Spacing
-scales = None       # Scales used in the wavelet transform
 lowest_freq = None  # Lowest frequency in the wavelet transform
 boom = None         # Trend to use during retrending process
 flip = False        # Flip the data before applying the algorithm
