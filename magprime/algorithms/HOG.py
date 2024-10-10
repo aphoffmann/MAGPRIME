@@ -103,8 +103,15 @@ def cleanHOG(B):
                 cond = np.linalg.cond(K.T @ W @ K)
 
     aii = K
-    result = np.linalg.solve(K.T @ W @ K, K.T @ W @ B)
-    return(result[0])
+    det_mat6b = np.linalg.det(aii)
+    inv_mat6b = np.linalg.inv(aii)
+    adj_mat6b = det_mat6b * inv_mat6b.T
+    C_col1 = adj_mat6b[:, 0] 
+
+    B_amb = np.tensordot(C_col1, B, axes=([0], [0])) / det_mat6b
+    #result = np.linalg.solve(K.T @ W @ K, K.T @ W @ B)
+    #return(result[0])
+    return(B_amb)
 
 def findOptimalK(k):
     if not treat_matrix: return k
