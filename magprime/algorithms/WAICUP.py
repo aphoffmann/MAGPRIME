@@ -29,6 +29,8 @@ detrend = True     # Detrend the data
 fs = 1              # Sampling Frequency
 dj = 1/12           # Wavelet Scale Spacing
 scales = None       # Scales used in the wavelet transform
+lowest_freq = None  # Lowest frequency in the wavelet transform
+boom = None         # Trend to use during retrending process
 
 def clean(B, triaxial = True):
     """
@@ -59,7 +61,8 @@ def cleanWAICUP(sensors):
     
     "Retrend"
     if(detrend):
-        result += np.mean(trend, axis = 0)
+        if(boom is not None): result += trend[boom]
+        else: result += np.mean(trend, axis = 0)
 
     return(result)
     
@@ -68,11 +71,16 @@ def dual(sig, dt, dj):
     "Create Wavelets"
     w1 = WaveletAnalysis(sig[0], dt=dt, frequency=True, dj = dj, unbias=False, mask_coi = True)
     w2 = WaveletAnalysis(sig[1], dt=dt, frequency=True, dj = dj, unbias=False, mask_coi = True)
+
+    if(lowest_freq is not None):
+        w1.lowest_freq = lowest_freq
+        w2.lowest_freq = lowest_freq
+        
     
     "Transform signals into wavelet domain"
     wn1 = w1.wavelet_transform.real
     wn2 = w2.wavelet_transform.real
-    
+
     "Sheinker and Moldwin's Algorithm"
     dw = wn2-wn1
     wc1 = np.sum(dw*wn1, axis=1)
@@ -101,19 +109,17 @@ def multi(sig, dt, dj):
     w_obj = []
     for i in range(len(pairs)):
         waicup_level1[i] = dual(np.vstack((sig[pairs[i][0]], sig[pairs[i][1]])), dt, dj)
-        w_obj.append(WaveletAnalysis(waicup_level1[i], dt=dt, frequency=True, dj = dj))
+        wave_obj = WaveletAnalysis(waicup_level1[i], dt=dt, frequency=True, dj = dj)
+        wave_obj.lowest_freq = lowest_freq
+        w_obj.append(wave_obj)
         
     w = [wav.wavelet_transform.real for wav in w_obj]
         
     "Iterate through Level 1 WAICUP"
     w = np.array(w)
-    wn_clean = np.zeros(w[0].shape)
-
-    "Iterate through every single datapoint"
-    for row in range(wn_clean.shape[0]):
-        for col in range(wn_clean.shape[1]):
-            #print(row,col, wn.shape, wn_clean.shape)
-            wn_clean[row,col] = w[np.argmin(np.abs(w[:,row,col])), row, col] #np.argmin(np.abs(wn[:,row,col]))
+    abs_w = np.abs(w)
+    indices = np.argmin(abs_w, axis=0)
+    wn_clean = np.take_along_axis(w, indices[None, :, :], axis=0)[0]
     
     "Reconstruct Ambient Magnetic Field Signal"
     W_n = wn_clean
