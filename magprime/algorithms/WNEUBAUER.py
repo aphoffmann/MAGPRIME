@@ -107,7 +107,7 @@ def cleanWAICUP(sensors):
         wavs = np.array([w_clean, w_boom])
         abs_w = np.abs(wavs)
         indices = np.argmin(abs_w, axis=0)
-        wn_clean = np.take_along_axis(wavs, indices[None, :, :], axis=0)[0]
+        w_clean = np.take_along_axis(wavs, indices[None, :, :], axis=0)[0]
 
     ## Reconstruct Ambient Magnetic Field Signal
     w1 = WaveletAnalysis(sensors[0], dt=dt, frequency=True, dj = dj, unbias=False, mask_coi = True)
