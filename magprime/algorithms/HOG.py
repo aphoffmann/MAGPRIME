@@ -48,7 +48,7 @@ def cleanHOG(B):
     "Initialize coupling matrix K"
     global order
     order = min(order, B.shape[0])
-    K = np.zeros((B.shape[0], order))
+    K = np.ones((B.shape[0], order)) /10
     K[:,0] = 1
     # set values above diagonals to 1: 
     for i in range(1,order): # Column
