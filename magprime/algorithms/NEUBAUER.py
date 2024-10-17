@@ -40,7 +40,7 @@ def clean(B, triaxial = True):
         trend = uniform_filter1d(B, size=uf, axis = -1)
         B = B - trend
 
-    result = cleanNeubauer(B)
+    result = cleanNeubauer2(B)
 
     if(detrend):
         result += np.mean(trend, axis=0)
@@ -102,7 +102,7 @@ def cleanNeubauer(B):
     mat_6a[1:, 1:] = mat_6b[1:, 1:]
     for sample in range(n_samples):
         for axis in range(axes):
-            mat_6a[:, 0] = B_sorted[0, axis, sample]
+            mat_6a[:, 0] = B_sorted[:, axis, sample]
             B_amb[axis, sample] = (1 / np.linalg.det(mat_6b)) * np.linalg.det(mat_6a)
 
     return B_amb
