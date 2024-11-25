@@ -45,6 +45,7 @@ fs = 1              # Sampling Frequency
 weight = 1          # Weight for Compressive Sensing
 boom = None         # Index of boom magnetometer in (n_sensors, axes, n_samples) array
 cs_iters = 5        # Number of Iterations for Compressive Sensing
+subspace = False    # Use Subspace Method for Compressive Sensing
 
 "Internal Parameters"
 magnetometers = 3
@@ -81,6 +82,97 @@ def clean(B, triaxial = True):
     
     return(result)
 
+
+def subspacePursuit(A, b, n_clusters, data):
+    """
+    Implement Subspace Pursuit algorithm using CVXPY for complex-valued data.
+    
+    Parameters:
+        A : ndarray
+            Measurement matrix (m x n), complex-valued.
+        b : ndarray
+            Observed data vector (m x 1), complex-valued.
+        n_clusters : int
+            Dimension of the signal x (number of variables).
+        data : ndarray
+            Data to set b.
+    Returns:
+        x : ndarray
+            Reconstructed signal (n x 1), complex-valued.
+    """
+    # K, max_iters=10, sspTol=0.99, boom=None, cs_iters=10
+    # Ensure b is set to data
+    b = data.copy()
+    A = A.value
+    
+    # Initialize residual
+    r = b.copy()
+    
+    # Initialize support set S
+    S = np.array([], dtype=int)
+    
+    # Perform SSP check
+    b_real = np.real(data)
+    b_imag = np.imag(data)
+    cos_sim = np.dot(b_real, b_imag) / (np.linalg.norm(b_real) * np.linalg.norm(b_imag))
+    threshold = np.cos(np.deg2rad(sspTol))
+    SSP = cos_sim >= threshold
+    
+    # Adjust K based on SSP
+    if SSP:
+        K = 1  # Signal is likely from a single source
+    else:
+        K = A.shape[0]
+    
+    # Iterative process
+    for iter in range(cs_iters):
+        # Compute proxy
+        p = A.conj().T @ r
+        
+        # Identify indices of largest K entries in |p|
+        indices = np.argsort(np.abs(p))[-K:]
+        
+        # Merge with current support set
+        S_candidate = np.union1d(S, indices)
+        
+        # Solve least squares problem over support set using CVXPY
+        A_S = A[:, S_candidate]
+        
+        lambda_reg = 1e-3
+        A_S_conj_transpose = A_S.conj().T
+        lhs = A_S_conj_transpose @ A_S + lambda_reg * np.eye(len(S_candidate))
+        rhs = A_S_conj_transpose @ b
+
+        # Solve for x_S
+        try:
+            x_S = np.linalg.solve(lhs, rhs)
+        except np.linalg.LinAlgError as e:
+            print(f"Linear algebra error at iteration {iter}: {e}")
+            break  # Exit loop or handle the error as needed
+
+        # Prune support to keep largest K components
+        idx_largest = np.argsort(np.abs(x_S))[-K:]
+        S = S_candidate[idx_largest]
+        x_S = x_S[idx_largest]
+
+        # Update residual
+        A_S = A[:, S]
+        r = b - A_S @ x_S
+
+        # Check convergence
+        if np.linalg.norm(r) < 1e-6:
+            break
+
+    
+    # Form the full x vector
+    x = np.zeros(n_clusters, dtype=complex)
+    x[S] = x_S
+    
+    # Enforce boom constraint if applicable
+    if boom is not None and np.abs(x[0]) >= np.abs(b[boom]):
+        x[0] = b[boom]
+    
+    return x
 
 def processData(A, b, n_clusters, data):
     "Define cvxpy parameters and variables for optimization problem" 
@@ -161,7 +253,10 @@ def weightedReconstruction(sig):
     b = cp.Parameter(shape = magnetometers, complex=True)   
     
     "Pack constants together"
-    func = partial(processData, A, b, n_clusters)
+    if(subspace):
+        func = partial(subspacePursuit, A, b, n_clusters)
+    else:
+        func = partial(processData, A, b, n_clusters)
     
     "Use multiprocessing pool to map processData function over s array"
     with mp.Pool(processes=mp.cpu_count()) as pool:
@@ -216,7 +311,7 @@ def clusterNSGT(sig):
     length = sig.shape[-1]
     bins = bpo
     fmax = fs/2
-    lowf = 2 * bpo * fs / length
+    lowf = 8 * bpo * fs / length
     nsgt = CQ_NSGT(lowf, fmax, bins, fs, length, multichannel=True)
         
     "Take Non-stationary Gabor Transform"
@@ -268,7 +363,7 @@ def demixNSGT(sig):
     length = sig.shape[-1]
     bins = bpo
     fmax = fs/2
-    lowf = 2 * bpo * fs / length
+    lowf = 8 * bpo * fs / length
     nsgt = CQ_NSGT(lowf, fmax, bins, fs, length, multichannel=True)
     
     "Apply the forward transform to the signal and convert to numpy array"
