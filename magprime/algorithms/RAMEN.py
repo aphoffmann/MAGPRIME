@@ -13,12 +13,15 @@ sspTol : cosine similarity threshold for identifying multi-source points (MSPs) 
 
 import numpy as np
 from wavelets import WaveletAnalysis
+from scipy.optimize import minimize_scalar
+from numpy.linalg import pinv
 
 "Algorithm Parameters"
 aii = None          # Coupling matrix between the sensors and sources for NESS
 fs = 1              # Sampling Frequency
 sspTol = 15         # Cosine similarity threshold for identifying multi-source points (MSPs) and ambient single-source points (ASSPs)
 weights = None      # Weights for the Least-Squares Fit
+neubauer = False    # Boolean for whether to use Neubauer's method for calculating the coupling coefficients
 
 def clean(B, triaxial = True):
     """
@@ -37,31 +40,98 @@ def clean(B, triaxial = True):
     return(result)
 
 
-def cleanNess(B, triaxial = True):
+def cleanNess(B, triaxial=True, neubauer=False):
     """
-    B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
-    triaxial: boolean for whether to use triaxial or uniaxial ICA
+    Clean the magnetic field measurements by solving for the ambient magnetic field signal S0
+    using Cramer's Rule, without applying a weighting matrix.
+
+    Parameters:
+    - B: numpy array of shape (n_sensors, n_axes, n_samples)
+         Magnetic field measurements from the sensor array.
+    - triaxial: bool, default=True
+         Indicates whether to use triaxial or uniaxial ICA.
+    - neubauer: bool, default=False
+         Indicates whether to apply Neubauer's method.
+
+    Returns:
+    - S0: numpy array
+         The solved ambient magnetic field signal S0.
+         - If triaxial=True, shape is (n_axes, n_samples).
+         - If triaxial=False, shape is (n_samples,).
     """
-    global weights
-    if(weights is None):
-        weights = np.ones(B.shape[0])
 
-    W = np.diag(weights)
-    result = np.zeros((2,3, B.shape[-1]))
-    if(triaxial):
-        for axis in range(3):
-            # Get the mixing matrix for the current axis
-            A = aii[axis]
-            
-            # Solve for the ambient magnetic field signal
-            result[:, axis, :] = np.linalg.inv(A.T @ W @ A) @ A.T @ W @ np.flip(np.copy(B[:, axis, :]), axis = 0)
+    global aii  # Assuming 'aii' (mixing matrices) is defined globally elsewhere in your code
 
+    # Initialize the result array based on 'neubauer' and 'triaxial' parameters
+    if neubauer:
+        # If Neubauer's method requires handling additional components (e.g., a^3 and a^4),
+        # initialize the result array accordingly. Adjust the shape as needed based on your specific requirements.
+        # Here, we'll assume 'neubauer=True' maintains the original shape of B.
+        result_S0 = np.zeros(B.shape)
     else:
-        A = aii
-        # Solve for the ambient magnetic field signal
-        result = np.linalg.inv(A.T @ W @ A) @ A.T @ W @ np.flip(np.copy(B), axis = 0)
-        
-    return(result[0])
+        if triaxial:
+            result_S0 = np.zeros((B.shape[1], B.shape[2]))  # (n_axes, n_samples)
+        else:
+            result_S0 = np.zeros(B.shape[2])  # (n_samples,)
+
+    if triaxial:
+        for axis in range(B.shape[1]):  # Loop over each axis (e.g., x, y, z)
+            # Get the mixing matrix for the current axis
+            A = aii[axis]  # Shape: (n_sensors, m_sources)
+
+            # Compute determinant of KTK
+            det_A = np.linalg.det(A)
+            if det_A == 0:
+                raise ValueError(f"Singular matrix for axis {axis}. Cannot solve for S0.")
+
+            # Compute adjugate of KTK
+            adj_A = det_A * np.linalg.inv(A).T  # adj(KTK) = det(KTK) * inv(KTK).T
+
+            # Extract the first column of adjugate matrix (corresponding to S0)
+            C_col1 = adj_A[:, 0]  # Shape: (m_sources,)
+
+            # Prepare B for this axis and all time samples
+            B_sorted = np.flip(B[:, axis, :], axis=0)  # Shape: (n_sensors, n_samples)
+
+            # Compute the dot product of C_col1 and B_sorted across sensors
+            # Using tensordot to handle multiple samples efficiently
+            S0 = np.tensordot(C_col1, B_sorted, axes=([0], [0])) / det_A  # Shape: (n_samples,)
+
+            if neubauer:
+                # Assign S0 accordingly if Neubauer's method is applied
+                result_S0[:, axis, :] = S0  # Shape assumed to be (n_samples,)
+            else:
+                # Assign S0 to the result array
+                result_S0[axis, :] = S0  # Populate for current axis
+    else:
+        # Process uniaxial data
+        A = aii  # Shape: (n_sensors, m_sources)
+
+        # Compute determinant of KTK
+        det_A = np.linalg.det(A)
+        if det_A == 0:
+            raise ValueError("Singular matrix. Cannot solve for S0.")
+
+        # Compute adjugate of KTK
+        adj_A = det_A * np.linalg.inv(A).T  # adj(KTK) = det(KTK) * inv(KTK).T
+
+        # Extract the first column of adjugate matrix (corresponding to S0)
+        C_col1 = adj_A[:, 0]  # Shape: (m_sources,)
+
+        # Prepare B for all time samples
+        B_sorted = np.flip(B, axis=0)  # Shape: (n_sensors, n_samples)
+
+        # Compute S0
+        S0 = np.tensordot(C_col1, B_sorted, axes=([0], [0])) / det_A  # Shape: (n_samples,)
+
+        if neubauer:
+            # Assign S0 accordingly if Neubauer's method is applied
+            result_S0 = S0  # Shape assumed to be (n_samples,)
+        else:
+            # Assign S0 to the result array
+            result_S0 = S0  # Shape: (n_samples,)
+
+    return result_S0
     
 
 
@@ -77,42 +147,93 @@ def calculate_coupling_coefficients(B, fs=1, sspTol=15, triaxial=True):
 
     # Filter out MSPs and ASSPs
     filtered_w = filter_wavelets(w.wavelet_transform, sspTol=sspTol, triaxial=triaxial) 
-    
+
     # Reconstruct Time Series
     B_filtered = inverse_wavelet_transform(filtered_w, w, triaxial=triaxial)
     
     # Calculate Coupling Coefficients
     alpha_couplings = calculate_mixing_matrix(B_filtered, triaxial=triaxial)
+    
 
     return alpha_couplings
 
 def calculate_mixing_matrix(B_filtered, triaxial):
-    """Calculate the mixing matrix for the magnetic field measurements"""
+    """Calculate the mixing matrix for the magnetic field measurements."""
     n_sensors = B_filtered.shape[0]
-
-    if(triaxial):
+    #global neubauer
+    print("Neubauer", neubauer)
+    if triaxial:
         mixing_matrices = []
         for axis in range(3):
-            # Initialize the mixing matrix with ones in the first column
-            mixing_matrix = np.zeros((n_sensors, 2))
-            mixing_matrix[:, 0] = 1
-            
-            # Calculate alpha values for the upper triangular part of the matrix for this axis
-            for i in range(n_sensors):
-                alpha_ij = np.nanmean(np.abs(B_filtered[0, axis]) / np.abs(B_filtered[i, axis]), axis=-1)
-                mixing_matrix[i,1] = alpha_ij
-            mixing_matrices.append((mixing_matrix))
+            if neubauer:
+                
+                # Extend the mixing matrix to shape (n_sensors, 3)
+                mixing_matrix = np.ones((n_sensors, 3))
+
+                # Calculate alpha_ij and decompose into a^3 and a^4 for this axis
+                for i in range(1, n_sensors):
+                    # Calculate alpha_ij
+                    alpha_ij = np.nanmean(np.abs(B_filtered[0, axis]) / np.abs(B_filtered[i, axis]))
+                    
+                    # Define the function to minimize
+                    def f(a):
+                        return (a**3 - alpha_ij)**2
+                    
+                    # Perform the minimization with bounds to ensure positive 'a'
+                    result = minimize_scalar(f)
+                    a = result.x
+                    
+                    # Compute a_i^3 and a_i^4
+                    a_i3 = a**3
+                    a_i4 = a**4
+                    
+                    # Assign to the mixing matrix
+                    mixing_matrix[i, 1] = a_i3
+                    mixing_matrix[i, 2] = a_i4
+                mixing_matrices.append(mixing_matrix)
+            else:
+                # Original mixing matrix code without Neubauer's method
+                mixing_matrix = np.ones((n_sensors, 2))
+                for i in range(1, n_sensors):
+                    alpha_ij = np.nanmean(np.abs(B_filtered[0, axis]) / np.abs(B_filtered[i, axis]))
+                    mixing_matrix[i, 1] = alpha_ij
+                mixing_matrices.append(mixing_matrix)
         return np.array(mixing_matrices)
-    
     else:
-        mixing_matrix = np.zeros((n_sensors, 2))
-        mixing_matrix[:, 0] = 1
-        
-        for i in range(n_sensors):
-            alpha_ij = np.nanmean(np.abs(B_filtered[0]) / np.abs(B_filtered[i]), axis=-1)
-            mixing_matrix[i,1] = alpha_ij
-        return mixing_matrix
-    
+        if neubauer:
+            # Extend the mixing matrix to shape (n_sensors, 3)
+            mixing_matrix = np.ones((n_sensors, 3))
+
+            # Calculate alpha_ij and decompose into a^3 and a^4
+            for i in range(1, n_sensors):
+                # Calculate alpha_ij
+                alpha_ij = np.nanmean(np.abs(B_filtered[0]) / np.abs(B_filtered[i]))
+                
+                # Define the function to minimize
+                def f(a):
+                    return (a**3 + a**4 - alpha_ij)**2
+                
+                # Perform the minimization with bounds to ensure positive 'a'
+                result = minimize_scalar(f, bounds=(0, None), method='bounded')
+                a = result.x
+                
+                # Compute a_i^3 and a_i^4
+                a_i3 = a**3
+                a_i4 = a**4
+                
+                # Assign to the mixing matrix
+                mixing_matrix[i, 1] = a_i3
+                mixing_matrix[i, 2] = a_i4
+            return mixing_matrix
+        else:
+            # Original mixing matrix code without Neubauer's method
+            mixing_matrix = np.ones((n_sensors, 2))
+            for i in range(1, n_sensors):
+                alpha_ij = np.nanmean(np.abs(B_filtered[0]) / np.abs(B_filtered[i]))
+                mixing_matrix[i, 1] = alpha_ij
+            return mixing_matrix
+
+
 def filter_wavelets(w, sspTol=15, triaxial=True):
     """Filter out Multi Source Points (MSPs) and Ambient Single Source Points (ASSPs) from the wavelet transform of the magnetic field measurements"""
     if(triaxial):
