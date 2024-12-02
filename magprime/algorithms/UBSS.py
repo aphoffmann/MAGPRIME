@@ -82,6 +82,102 @@ def clean(B, triaxial = True):
     
     return(result)
 
+def subspacePursuit2(A, b, n_clusters, data):
+    """
+    Implement Subspace Pursuit algorithm using CVXPY for complex-valued data.
+    
+    Parameters:
+        A : ndarray
+            Measurement matrix (m x n), complex-valued.
+        b : ndarray
+            Observed data vector (m x 1), complex-valued.
+        n_clusters : int
+            Sparsity level (number of non-zero entries in the signal).
+        data : ndarray
+            Data to set b.
+    Returns:
+        x : ndarray
+            Reconstructed signal (n x 1), complex-valued.
+        support : ndarray
+            Support indices of the reconstructed signal.
+    """
+    # Ensure b is set to data
+    y = data.copy()
+    Phi = A.value
+    s = n_clusters
+    mu = 2  # You can adjust mu as needed or pass it as a parameter
+
+    # Initialization
+    S = set()  # S^0 = empty set
+    x = np.zeros(Phi.shape[1], dtype=complex)  # x^0 = 0
+    max_iters = 100  # Maximum number of iterations
+    tol = 1e-6       # Convergence tolerance
+
+    for n in range(max_iters):
+        # Step 1: Compute Phi^*(y - Phi x^{n-1})
+        residual = y - Phi @ x
+        proxy = Phi.conj().T @ residual
+
+        # Step 2: Identify Delta S (s largest entries in proxy)
+        Delta_S = set(np.argsort(np.abs(proxy))[-s:])
+
+        # Step 3: Merge support sets
+        S_union = S.union(Delta_S)
+
+        # Step 4: Solve least squares on the merged support
+        if len(S_union) == 0:
+            x_tilde = np.zeros(Phi.shape[1], dtype=complex)
+        else:
+            Phi_S = Phi[:, list(S_union)]
+            # Using least squares: minimize ||y - Phi_S z||_2
+            z, _, _, _ = np.linalg.lstsq(Phi_S, y, rcond=None)
+            x_tilde = np.zeros(Phi.shape[1], dtype=complex)
+            x_tilde[list(S_union)] = z
+
+        # Step 5: Identify U^n (s largest entries in x_tilde)
+        U = set(np.argsort(np.abs(x_tilde))[-s:])
+
+        # Step 6: Form u^n by keeping entries in U and zeroing out others
+        u = np.zeros(Phi.shape[1], dtype=complex)
+        u[list(U)] = x_tilde[list(U)]
+
+        # Step 7: Update support set S^n
+        residual_u = y - Phi @ u
+        Phi_residual = Phi.conj().T @ residual_u
+        update_term = u + mu * Phi_residual
+        S_new = set(np.argsort(np.abs(update_term))[-s:])
+
+        # Step 8: Solve least squares on the new support set
+        if len(S_new) == 0:
+            x_new = np.zeros(Phi.shape[1], dtype=complex)
+        else:
+            Phi_S_new = Phi[:, list(S_new)]
+            z_new, _, _, _ = np.linalg.lstsq(Phi_S_new, y, rcond=None)
+            x_new = np.zeros(Phi.shape[1], dtype=complex)
+            x_new[list(S_new)] = z_new
+
+        # Check for convergence
+        if np.linalg.norm(x_new - x) < tol:
+            x = x_new
+            S = S_new
+            print(f'Converged at iteration {n+1}')
+            break
+
+        # Update variables for next iteration
+        x = x_new
+        S = S_new
+    else:
+        print('Maximum iterations reached without convergence.')
+
+
+    # Optional: Enforce additional constraints if applicable
+    # Example: Enforce boom constraint (if 'boom' is defined)
+    # if 'boom' in globals() and boom is not None:
+    #     if np.abs(x[0]) >= np.abs(x[boom]):
+    #         x[0] = x[boom]
+    
+    return x
+
 
 def subspacePursuit(A, b, n_clusters, data):
     """
@@ -100,17 +196,6 @@ def subspacePursuit(A, b, n_clusters, data):
         x : ndarray
             Reconstructed signal (n x 1), complex-valued.
     """
-    # K, max_iters=10, sspTol=0.99, boom=None, cs_iters=10
-    # Ensure b is set to data
-    b = data.copy()
-    A = A.value
-    
-    # Initialize residual
-    r = b.copy()
-    
-    # Initialize support set S
-    S = np.array([], dtype=int)
-    
     # Perform SSP check
     b_real = np.real(data)
     b_imag = np.imag(data)
@@ -120,9 +205,20 @@ def subspacePursuit(A, b, n_clusters, data):
     
     # Adjust K based on SSP
     if SSP:
-        K = 1  # Signal is likely from a single source
+        return processData(A, b, n_clusters, data)
     else:
         K = A.shape[0]
+
+    # Ensure b is set to data
+    b = data.copy()
+    A = A.value
+    
+    # Initialize residual
+    r = b.copy()
+    
+    # Initialize support set S
+    S = np.array([], dtype=int)
+
     
     # Iterative process
     for iter in range(cs_iters):
@@ -174,6 +270,7 @@ def subspacePursuit(A, b, n_clusters, data):
     
     return x
 
+
 def processData(A, b, n_clusters, data):
     "Define cvxpy parameters and variables for optimization problem" 
     x = cp.Variable(shape = n_clusters, complex=True)
@@ -182,7 +279,7 @@ def processData(A, b, n_clusters, data):
     w = cp.Parameter(shape = n_clusters, value = weights, nonneg=True)
     
     "Define constraints as Dantzig Selector and optional boom constraint"
-    constraints = [cp.norm(A.T@(A@x - b), 'inf') <= 0.01]
+    constraints = [cp.norm(A.T@(A@x - b), 'inf') <= 0.008]
     
     "Define objective function as weighted L1 norm"
     objective = cp.Minimize(cp.sum(w.T@cp.abs(x)))
