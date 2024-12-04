@@ -193,7 +193,7 @@ def filterMagnitude(B):
     """ Filters out low energy points"""
     B = np.array(B)
     m = np.linalg.norm(np.abs(B), axis=0)
-    magFilter = m > lambda_*sigma
+    magFilter = m > np.percentile(m, 90)
     B_m = np.array([B[i][magFilter] for i in range(magnetometers)])
     return(B_m)
 
@@ -216,7 +216,7 @@ def clusterNSGT(sig):
     length = sig.shape[-1]
     bins = bpo
     fmax = fs/2
-    lowf = 2 * bpo * fs / length
+    lowf = 8 * bpo * fs / length
     nsgt = CQ_NSGT(lowf, fmax, bins, fs, length, multichannel=True)
         
     "Take Non-stationary Gabor Transform"
@@ -268,7 +268,7 @@ def demixNSGT(sig):
     length = sig.shape[-1]
     bins = bpo
     fmax = fs/2
-    lowf = 2 * bpo * fs / length
+    lowf = 8 * bpo * fs / length
     nsgt = CQ_NSGT(lowf, fmax, bins, fs, length, multichannel=True)
     
     "Apply the forward transform to the signal and convert to numpy array"
