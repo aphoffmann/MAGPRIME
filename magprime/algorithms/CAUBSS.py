@@ -20,8 +20,6 @@ boom : index of boom magnetometer in (n_sensors, axes, n_samples) array
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.stats import gaussian_kde
 from sklearn.cluster import HDBSCAN
 import cvxpy as cp
 import collections
@@ -41,8 +39,8 @@ detrend = False     # Detrend the data
 sspTol = 15         # SSP Filter Threshold
 bpo = 1            # Number of Bands Per Octave in the NSGT Transform
 fs = 1              # Sampling Frequency
-boom = None         # Index of boom magnetometer in (n_sensors, axes, n_samples) array
-cs_iters = 5        # Number of Iterations for Compressive Sensing
+mag_percentile = 95
+mag
 
 "Internal Parameters"
 magnetometers = 3
@@ -64,10 +62,9 @@ def clean(B, triaxial = True):
         B = B - trend
 
     if(triaxial):
-        result = np.zeros((3, B.shape[-1]))
         setMagnetometers(B.shape[0])
         clusterNSGT(B)
-        # result[axis] = demixNSGT(B[:,axis,:])[0] ToDO
+        result = demixNSGT(B)[0]
     else:
         raise Exception("Only triaxial data is supported")
 
@@ -98,7 +95,7 @@ def filterMagnitude(B):
     """ Filters out low energy points"""
     B = np.array(B)
     m = np.linalg.norm(np.abs(B), axis=0)
-    magFilter = m > np.percentile(m, 95)
+    magFilter = m > np.percentile(m, mag_percentile)
     B_m = np.array([B[i][magFilter] for i in range(B.shape[0])])
     return(B_m)
 
@@ -252,8 +249,7 @@ def processData(A_big, b_big, n_clusters, data):
     """
     A_big : cp.Parameter, shape = (n_sensors*n_axes, n_clusters*n_axes)
     b_big : cp.Parameter, shape = (n_sensors*n_axes,)
-    data  : a 2D measurement in original shape => we flatten it before passing here,
-            or pass it already flattened in weightedReconstruction.
+    data  : a 2D measurement in original shape => we pass it already flattened in weightedReconstruction.
     
     We'll reconstruct x in (n_clusters, 3) by first defining x_big in (n_clusters*3,).
     """
@@ -270,29 +266,19 @@ def processData(A_big, b_big, n_clusters, data):
     w = cp.Parameter(shape=(n_clusters,), value=weights, nonneg=True)
 
     # We'll reshape x_big back to (n_clusters, 3) for the L1 penalty
-    x_2d = cp.reshape(x_big, (n_clusters, n_axes))
+    x_2d = cp.reshape(x_big, (n_axes, n_clusters))
 
     # Dantzig-type constraint: norm(A.T @ (A@x - b), inf) <= 0.01
-    # Here, A_big@x_big => shape (n_sensors*n_axes,)
-    # b_big             => shape (n_sensors*n_axes,)
     constraints = [
         cp.norm(A_big.T @ (A_big @ x_big - b_big), 'inf') <= 0.01
     ]
 
     # Weighted L1 norm on x_2d
-    # w^T@|x_2d| => shape mismatch unless we sum across axes
-    # Your original code is cp.sum(w.T @ cp.abs(x)),
-    # which works if cp.abs(x) is (n_clusters, 3) and w is (n_clusters,).
-    # That yields a shape (3,) expression. Usually you'd sum again, but let's match your code style:
-    #objective = cp.Minimize(cp.sum(w.T @ cp.abs(x_2d)))
-    #objective = cp.Minimize(cp.sum(cp.multiply(w[:, None], cp.abs(x_2d))))
-    objective = cp.Minimize(
-        cp.sum(cp.multiply(w, cp.norm(x_2d, p=2, axis=1)))
-    )
+    objective = cp.Minimize(cp.sum(cp.multiply(w, cp.norm(x_2d, p=1, axis=0))))
     problem = cp.Problem(objective, constraints)
 
     # Assign the flattened measurement
-    b_big.value = data  # must be shape (n_sensors*n_axes,)
+    b_big.value = data 
 
     # Solve
     problem.solve(warm_start=True)
@@ -304,8 +290,7 @@ def weightedReconstruction(sig):
     Performs the reconstruction for each 'frame' (or slice) of `sig`
     using a parallel pool. The result is shaped accordingly.
     
-    sig : shape (n_sensors, num_samples, n_axes) or something similar
-          so that sig.T might get you an iterable over the time dimension.
+    sig : shape (n_sensors, n_axes, n_samples) 
     """
     # 1) Gather cluster centroids as an array of shape (n_clusters, n_sensors, n_axes)
     n_clusters = len(clusterCentroids)
@@ -324,22 +309,19 @@ def weightedReconstruction(sig):
     print("A_big shape =", A_big.value.shape)
 
     # 3) Prepare data array
-    #  sig is presumably shape (magnetometers, something, 3),
-    #  so sig.T => shape (something, magnetometers, 3).
-    #  We'll iterate over each slice in 's'.
-    s = np.transpose(sig, (2, 0, 1))  # shape => (# frames, magnetometers, 3) if sig was (magnetometers, #frames, 3)
+    s = np.transpose(sig, (2, 0, 1))  # shape => (# frames, magnetometers, axes) 
     s = np.array(s)
 
     # 4) We'll pass partial(...) with the processData function
     func = partial(processData, A_big, b_big, n_clusters)
 
     # 5) Use multiprocessing
- 
+    """
     results = []
     for frame in tqdm.tqdm(s, total=len(s)):
         # Flatten the frame to shape (magnetometers*3,)
-        flat_frame = frame.reshape(-1)
-        # Call processData directly with the flattened frame
+        flat_frame = frame.T.reshape(-1)
+        # Call processData directly with the flattened frame [x1, x2, y1, y2, z1, z2]
         result = func(flat_frame)
         results.append(result)
     """
@@ -347,28 +329,19 @@ def weightedReconstruction(sig):
     with mp.Pool(processes=mp.cpu_count()) as pool:
         results = list(tqdm.tqdm(pool.imap(func, 
                                            # Flatten each slice to shape (magnetometers*3,)
-                                           (frame.reshape(-1) for frame in s),
+                                           (frame.T.reshape(-1) for frame in s),
                                            # or you can do direct pass if you already shaped them
                                           ), 
                                  total=len(s)))  
-    """
+
 
     # 6) Convert results to desired shape:
-    # Each 'result' is x_big, shape (n_clusters*3,)
-    # We might want shape (#frames, 3, n_clusters), or something else
     results = np.array(results)  # shape (#frames, n_clusters*3)
     
-    # We'll reshape each row to (n_clusters,3), then transpose as needed
-    # If you want final shape (sig.shape[2], 3, n_clusters) like your original code:
-    #   sig.shape[2] might be #frames. Let's assume #frames = results.shape[0].
-    #   Then each result row => (n_clusters, 3).
-    #   Then we store it in shape (#frames, 3, n_clusters).
-    # This is an example—adjust if you want a different layout:
+    # We'll reshape each row to (3,n_clusters), then transpose as needed
     reshaped = []
     for row in results:
-        # row => (n_clusters*3,)
-        x_2d = row.reshape(n_clusters, 3)  # shape (n_clusters, 3)
-        x_2d = x_2d.T                     # shape (3, n_clusters)
+        x_2d = row.reshape(3, n_clusters)  # shape (n_clusters, 3)
         reshaped.append(x_2d)
     r = np.array(reshaped)  # shape (#frames, 3, n_clusters)
 
@@ -400,7 +373,7 @@ def demixNSGT(sig):
     
     "Separate Signals"
     B_reconstructed = weightedReconstruction(B_nsgt)
-    r_flat = B_reconstructed.reshape(sensors*axes, B_reconstructed.shape[-1])
+    r_flat = B_reconstructed.reshape(len(clusterCentroids)*axes, B_reconstructed.shape[-1])
 
     "Split the matrix into subbands for each channel"
     S_nsgt = []
@@ -419,7 +392,7 @@ def demixNSGT(sig):
     "Save Result"
     global result
     result = np.array(sig_r)
-    result = result.reshape(sensors, axes, result.shape[-1])
+    result = result.reshape(len(clusterCentroids), axes, result.shape[-1])
     
     return(result)
  
