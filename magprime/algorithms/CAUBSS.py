@@ -40,7 +40,7 @@ sspTol = 15         # SSP Filter Threshold
 bpo = 1            # Number of Bands Per Octave in the NSGT Transform
 fs = 1              # Sampling Frequency
 mag_percentile = 95
-mag
+mag_positions = None
 
 "Internal Parameters"
 magnetometers = 3
@@ -245,7 +245,122 @@ def build_block_diag_matrix(centroids):
     A_big_np = block_diag(*blocks)
     return A_big_np
 
-def processData(A_big, b_big, n_clusters, data):
+def findCurlOperator(mag_positions):
+    """
+    Build a (3M x 3M) matrix D that, when multiplied by a magnetic field vector
+    B of axis-major shape [x1..xM, y1..yM, z1..zM], returns an approximate curl
+    at each sensor.
+
+    Parameters
+    ----------
+    mag_positions : np.ndarray of shape (M, 3)
+        The (x, y, z) positions of each of the M magnetometers.
+
+    Returns
+    -------
+    D : np.ndarray of shape (3*M, 3*M)
+        A naive discrete-curl operator. Then C = D @ B has shape (3*M,),
+        where C[3*i : 3*i+3] ~ (curl_x, curl_y, curl_z) at sensor i.
+    """
+
+    M = len(mag_positions)
+    # We want a 3M x 3M operator: 3 curl-components per sensor, 3 field-components per sensor
+    D = np.zeros((3*M, 3*M), dtype=float)
+
+    # Helper indexers for axis-major B:
+    #   B = [x0, x1, ..., x(M-1), y0, y1, ..., y(M-1), z0, z1, ..., z(M-1)]
+    def idx_x(m): return m
+    def idx_y(m): return M + m
+    def idx_z(m): return 2*M + m
+
+    def find_closest_in_axis(i, axis):
+        """
+        Return the index j != i of the sensor with the closest coordinate
+        to sensor i in the specified axis (0->x,1->y,2->z).
+        If there's a tie or degenerate, this just picks the first min.
+        """
+        coords = mag_positions[:, axis]
+        val = coords[i]
+        diff = np.abs(coords - val)
+        diff[i] = -1  # exclude itself
+        j = np.argmax(diff)
+        return j
+
+    # For each sensor i, we fill 3 rows of D that approximate:
+    #
+    #   C_x(i) = (∂Bz/∂y)(i) - (∂By/∂z)(i)
+    #   C_y(i) = (∂Bx/∂z)(i) - (∂Bz/∂x)(i)
+    #   C_z(i) = (∂By/∂x)(i) - (∂Bx/∂y)(i)
+    #
+    # Each partial derivative is approximated via a first difference with
+    # the nearest neighbor along that axis.
+
+    for i in range(M):
+        # -----------------------------
+        # Row 3*i => approximate C_x(i) = ∂Bz/∂y - ∂By/∂z
+        # -----------------------------
+        # ∂Bz/∂y at sensor i
+        j_y = find_closest_in_axis(i, axis=1)  # neighbor along y
+        dy = mag_positions[j_y,1] - mag_positions[i,1]
+        if not np.isclose(dy, 0.0):
+            coeff_z_by = 1.0 / dy
+            # "Bz(j_y) - Bz(i)" * coeff_z_by
+            D[3*i, idx_z(j_y)] +=  coeff_z_by
+            D[3*i, idx_z(i)]   -= coeff_z_by
+        else:
+            # degenerate, skip or treat as 0
+            pass
+
+        # ∂By/∂z at sensor i
+        j_z = find_closest_in_axis(i, axis=2)  # neighbor along z
+        dz = mag_positions[j_z,2] - mag_positions[i,2]
+        if not np.isclose(dz, 0.0):
+            coeff_y_bz = 1.0 / dz
+            # Subtract (∂By/∂z)
+            D[3*i, idx_y(j_z)] -= coeff_y_bz
+            D[3*i, idx_y(i)]   += coeff_y_bz
+
+        # -----------------------------
+        # Row 3*i+1 => approximate C_y(i) = ∂Bx/∂z - ∂Bz/∂x
+        # -----------------------------
+        # ∂Bx/∂z
+        j_z2 = find_closest_in_axis(i, axis=2)
+        dz2 = mag_positions[j_z2,2] - mag_positions[i,2]
+        if not np.isclose(dz2, 0.0):
+            coeff_x_bz = 1.0 / dz2
+            D[3*i+1, idx_x(j_z2)] += coeff_x_bz
+            D[3*i+1, idx_x(i)]    -= coeff_x_bz
+
+        # ∂Bz/∂x
+        j_x = find_closest_in_axis(i, axis=0)
+        dx = mag_positions[j_x,0] - mag_positions[i,0]
+        if not np.isclose(dx, 0.0):
+            coeff_z_bx = 1.0 / dx
+            # subtract
+            D[3*i+1, idx_z(j_x)] -= coeff_z_bx
+            D[3*i+1, idx_z(i)]   += coeff_z_bx
+
+        # -----------------------------
+        # Row 3*i+2 => approximate C_z(i) = ∂By/∂x - ∂Bx/∂y
+        # -----------------------------
+        # ∂By/∂x
+        if not np.isclose(dx, 0.0):
+            coeff_y_bx = 1.0 / dx
+            D[3*i+2, idx_y(j_x)] += coeff_y_bx
+            D[3*i+2, idx_y(i)]   -= coeff_y_bx
+
+        # ∂Bx/∂y
+        j_y2 = find_closest_in_axis(i, axis=1)
+        dy2 = mag_positions[j_y2,1] - mag_positions[i,1]
+        if not np.isclose(dy2, 0.0):
+            coeff_x_by = 1.0 / dy2
+            # subtract
+            D[3*i+2, idx_x(j_y2)] -= coeff_x_by
+            D[3*i+2, idx_x(i)]    += coeff_x_by
+
+    return D
+
+def processData(A_big, b_big, n_clusters, D, data):
     """
     A_big : cp.Parameter, shape = (n_sensors*n_axes, n_clusters*n_axes)
     b_big : cp.Parameter, shape = (n_sensors*n_axes,)
@@ -275,13 +390,19 @@ def processData(A_big, b_big, n_clusters, data):
 
     # Weighted L1 norm on x_2d
     objective = cp.Minimize(cp.sum(cp.multiply(w, cp.norm(x_2d, p=1, axis=0))))
+    if(D is not None):
+        objective += cp.Minimize(cp.norm(D @ A_big @ x_big, 2))
+    
     problem = cp.Problem(objective, constraints)
 
     # Assign the flattened measurement
     b_big.value = data 
 
     # Solve
-    problem.solve(warm_start=True)
+    try:
+        problem.solve()
+    except:
+        problem.solve(solver=cp.SCS, verbose = True,)
 
     return x_big.value
 
@@ -313,8 +434,12 @@ def weightedReconstruction(sig):
     s = np.array(s)
 
     # 4) We'll pass partial(...) with the processData function
-    func = partial(processData, A_big, b_big, n_clusters)
-
+    if mag_positions is not None:
+        D = findCurlOperator(mag_positions)
+        D_big = cp.Parameter(shape=D.shape, value=D)
+        func = partial(processData,A_big, b_big, n_clusters, D_big)
+    else:
+        func = partial(processData, A_big, b_big, n_clusters, None)
     # 5) Use multiprocessing
     """
     results = []
@@ -333,7 +458,7 @@ def weightedReconstruction(sig):
                                            # or you can do direct pass if you already shaped them
                                           ), 
                                  total=len(s)))  
-
+    
 
     # 6) Convert results to desired shape:
     results = np.array(results)  # shape (#frames, n_clusters*3)
