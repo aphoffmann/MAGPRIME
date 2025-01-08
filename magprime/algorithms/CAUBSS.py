@@ -30,6 +30,7 @@ from nsgt import CQ_NSGT
 import tqdm
 from functools import partial
 from scipy.ndimage import uniform_filter1d
+from scipy.linalg import block_diag
 
 
 "General Parameters"
@@ -37,12 +38,9 @@ uf = 400            # Uniform Filter Size for detrending
 detrend = False     # Detrend the data
 
 "Algorithm Parameters"
-sigma = 100         # Magnitude Filter Threshold
-lambda_ = 1.2       # Magnitude Filter Threshold Factor
 sspTol = 15         # SSP Filter Threshold
-bpo = 10            # Number of Bands Per Octave in the NSGT Transform
+bpo = 1            # Number of Bands Per Octave in the NSGT Transform
 fs = 1              # Sampling Frequency
-weight = 1          # Weight for Compressive Sensing
 boom = None         # Index of boom magnetometer in (n_sensors, axes, n_samples) array
 cs_iters = 5        # Number of Iterations for Compressive Sensing
 
@@ -50,7 +48,7 @@ cs_iters = 5        # Number of Iterations for Compressive Sensing
 magnetometers = 3
 result = None
 clusterCentroids = collections.OrderedDict({0:
-                       np.ones(magnetometers) })
+                       np.ones((magnetometers,3)) })
 hdbscan = HDBSCAN(min_samples = 4)
 
 def clean(B, triaxial = True):
@@ -67,117 +65,24 @@ def clean(B, triaxial = True):
 
     if(triaxial):
         result = np.zeros((3, B.shape[-1]))
-        for axis in range(3):
-            setMagnetometers(B.shape[0])
-            clusterNSGT(B[:,axis,:])
-            result[axis] = demixNSGT(B[:,axis,:])[0]
-    else:
         setMagnetometers(B.shape[0])
         clusterNSGT(B)
-        result = demixNSGT(B)[0]
+        # result[axis] = demixNSGT(B[:,axis,:])[0] ToDO
+    else:
+        raise Exception("Only triaxial data is supported")
 
     if(detrend):
         result += np.mean(trend, axis=0)
     
     return(result)
 
-
-def processData(A, b, n_clusters, data):
-    "Define cvxpy parameters and variables for optimization problem" 
-    x = cp.Variable(shape = n_clusters, complex=True)
-    
-    weights = np.ones(n_clusters)/n_clusters; 
-    w = cp.Parameter(shape = n_clusters, value = weights, nonneg=True)
-    
-    "Define constraints as Dantzig Selector and optional boom constraint"
-    constraints = [cp.norm(A.T@(A@x - b), 'inf') <= 0.01]
-    
-    "Define objective function as weighted L1 norm"
-    objective = cp.Minimize(cp.sum(w.T@cp.abs(x)))
-        
-    "Instantiate Problem"     
-    problem = cp.Problem(objective, constraints)
-    b.value = data
-
-    "Check if Single Source Point"          
-    b_real = np.real(data); b_imag = np.imag(data)
-    cos_sim = np.dot(b_real, b_imag) / (np.linalg.norm(b_real) * np.linalg.norm(b_imag))
-    threshold = np.cos(np.deg2rad(sspTol))
-    SSP = cos_sim >= threshold
-    
-    x_ratio = 0
-    
-    "Iteratively solve the system" 
-    for i in range(cs_iters):
-        try:
-            problem.solve(warm_start=True)
-            if(problem.status == 'optimal'): break
-        except:
-            "Check if x is None"
-            if(x.value is None):
-                x.value = np.zeros(n_clusters)
-                x.value[0] = b.value[np.abs(b.value).argmin()]
-
-            #string = f"ECOS Solver Failed\nASSP: {ASSP}\nX: {x.value}\nW: {w.value}\nB: {b.value}\nA: {A.value}\nRatio: {x_ratio}\n status: {problem.status}"
-            #raise Exception(string)
-        
-
-        if(SSP): 
-            "Make W[0] Smaller"
-            w = cp.inv_pos(cp.abs(x) + 0.01)
-        else:
-            delta = calculate_delta_s(A.value, x.value)
-            if(delta < np.sqrt(2) - 1):
-                w = cp.inv_pos(cp.abs(x) + 0.01)
-                continue
-            else:
-                "Calculate signal to noise ratio"
-                x_hat = np.abs(x.value) 
-                x_ratio = np.sum(x_hat[1:])/( x_hat[0]+ 0.01)
-                
-                "Update and clip ambient field weight"
-                w.value[0] = w.value[0] + .1*(x_ratio - w.value[0])
-                w.value[0]  = np.clip(w.value[0], .01, 100)
-
-    "Check if boom constraint is violated"
-    if(boom and np.abs(x.value[0]) >= np.abs(b.value[boom])):
-        x.value[0] = b.value[boom]
-
-    return x.value
-     
-def weightedReconstruction(sig):
-    "Get the number of clusters and initialize an empty result array"
-    n_clusters = len(clusterCentroids)
-    result = np.zeros((sig.shape[1], n_clusters), dtype = 'complex_')
-    
-    "Convert the cluster centroids and signal to numpy arrays"
-    centroids = np.array([clusterCentroids[i] for i in clusterCentroids.keys()])
-    s = sig.T
-    s = np.array(s)
-    
-    "Define CVXPY parameters"
-    A = cp.Parameter(shape=centroids.T.shape, value=centroids.T, complex=True)
-    print(np.round(A.value,2))
-    b = cp.Parameter(shape = magnetometers, complex=True)   
-    
-    "Pack constants together"
-    func = partial(processData, A, b, n_clusters)
-    
-    "Use multiprocessing pool to map processData function over s array"
-    with mp.Pool(processes=mp.cpu_count()) as pool:
-        # Use imap_unordered and tqdm
-        result = list(tqdm.tqdm(pool.imap(func, s), total=np.max(s.shape)))
-    
-    r=np.array(result).T
-    return(r)
-   
 def setMagnetometers(n=3):
     "Set the number of magnetometers"
     global magnetometers; global clusterCentroids
     magnetometers = n
     clusterCentroids = collections.OrderedDict({0:
-                           np.ones(n) })
-    
+                       np.ones((magnetometers,3)) })
+
 def clusterData(B):
     "Cluster Samples x M data points on unit hypersphere"
     clusterData = B.T
@@ -193,8 +98,8 @@ def filterMagnitude(B):
     """ Filters out low energy points"""
     B = np.array(B)
     m = np.linalg.norm(np.abs(B), axis=0)
-    magFilter = m > lambda_*sigma
-    B_m = np.array([B[i][magFilter] for i in range(magnetometers)])
+    magFilter = m > np.percentile(m, 95)
+    B_m = np.array([B[i][magFilter] for i in range(B.shape[0])])
     return(B_m)
 
 def filterSSP(B):
@@ -208,27 +113,89 @@ def filterSSP(B):
     norm_b[norm_b==0] = 1
     cos_sim = np.abs(a_dot_b/(norm_a*norm_b))
     SSP_Bools = np.array(np.matrix(cos_sim >= np.cos(np.deg2rad(sspTol)))).flatten()
-    B_s = np.array([B[i][SSP_Bools] for i in range(magnetometers)])
+    B_s = B[:,SSP_Bools]
     return(B_s) 
     
+def updateCentroids(newCentroids, learnRate=0.1, sspTol=15):
+    """
+    newCentroids shape: (n_sensors, n_clusters, axes)
+      - n_sensors: number of sensors
+      - n_clusters: number of new centroids to consider
+      - axes: number of axes per sensor (e.g., 3 for triaxial)
+
+    clusterCentroids is a global OrderedDict where each entry is:
+      clusterCentroids[cluster_id] -> np.array shape (n_sensors, axes)
+    """
+    n_sensors, n_clusters, axes = newCentroids.shape
+    
+    # If no new centroids, just return the current list
+    if n_clusters == 0:
+        return np.array([clusterCentroids[i] for i in clusterCentroids.keys()])
+    
+    # Loop over each new centroid in the second dimension
+    for i in range(n_clusters):
+        # Extract the (n_sensors, axes) centroid
+        centroid_2d = newCentroids[:, i, :]  # shape: (n_sensors, axes)
+        
+        # Flatten for cosine-similarity comparison
+        centroid_flat = centroid_2d.flatten()
+        
+        # Normalize to handle magnitude differences
+        # (Take the real part in case it’s complex, though typically these are real)
+        centroid_norm = np.linalg.norm(centroid_flat)
+        if centroid_norm > 0:
+            centroid_flat = np.real(centroid_flat) / centroid_norm
+        
+        newC = True  # Flag indicating whether this centroid is brand new
+        
+        # Compare with all existing centroids
+        for cluster_id, existing_centroid_2d in clusterCentroids.items():
+            # Flatten and normalize existing centroid
+            existing_flat = existing_centroid_2d.flatten()
+            existing_norm = np.linalg.norm(existing_flat)
+            if existing_norm > 0:
+                existing_flat = np.real(existing_flat) / existing_norm
+            
+            # Cosine similarity = dot(a, b); we then compute angle = arccos(...)
+            dot_val = np.dot(existing_flat, centroid_flat)
+            # Clip to handle floating-point errors slightly outside [-1,1]
+            dot_val = np.clip(dot_val, -1.0, 1.0)
+            angle = np.arccos(dot_val)  # in radians
+            
+            # Check if angle is within tolerance
+            if angle < np.deg2rad(sspTol):
+                # Update the existing centroid via a simple learning rate
+                # Usually skip updating cluster=0, but replicate your logic:
+                if cluster_id != 0:
+                    clusterCentroids[cluster_id] += learnRate * (centroid_2d - clusterCentroids[cluster_id])
+                newC = False
+                break  # Already found a match; no need to continue
+        
+        # If after checking all existing centroids this is still new, add it
+        if newC:
+            clusterCentroids[len(clusterCentroids)] = centroid_2d
+
+    # Return all global centroids in an array for convenience
+    return np.array([clusterCentroids[i] for i in clusterCentroids.keys()])
+
 def clusterNSGT(sig):
     "Create instance of NSGT and set NSGT parameters"
-    length = sig.shape[-1]
+    sensors, axes, length = sig.shape
+    sig_flat = sig.reshape(sensors*axes, length)
     bins = bpo
     fmax = fs/2
-    lowf = 2 * bpo * fs / length
+    lowf = 8 * bpo * fs / length
     nsgt = CQ_NSGT(lowf, fmax, bins, fs, length, multichannel=True)
         
     "Take Non-stationary Gabor Transform"
-    B = nsgt.forward(sig)
+    B = nsgt.forward(sig_flat)
     B = np.array(B, dtype=object)
-    B = np.vstack([np.hstack(B[i]) for i in range(magnetometers)])
+    B = np.vstack([np.hstack(B[i]) for i in range(sensors*axes)])
     
-    "Filter Low Energy Points"
+    "Filter Low Energy Points and Single Source Points"
     B_m = filterMagnitude(B)
-
-    "Filter Single Source Points"
     B_ssp = filterSSP(B_m)
+    B_ssp = B_ssp.reshape(sensors, axes, B_ssp.shape[-1]) # (sensor, axes, samples)
     
     "Take Absolute Magnitude"
     B_abs = np.abs(B_ssp)
@@ -240,54 +207,204 @@ def clusterNSGT(sig):
     "Project to Unit Hypersphere and Join with Argument"
     norms = np.sqrt((B_abs**2).sum(axis=0,keepdims=True))
     B_projected = np.where(norms!=0,B_abs/norms,0.)
-    H_tk =  np.vstack([B_projected,B_cos, B_sin])
+    H_tk =  np.vstack([B_projected,B_cos, B_sin]).transpose((1,0,2))
+    H_tk = H_tk.reshape(3*sensors*axes, H_tk.shape[-1])
         
     "Cluster Data"
     (centroids, clusters) = clusterData(H_tk)
-    
-    "Find Gain and Phase"
-    gain = centroids[:,:magnetometers]
-    B_cos = centroids[:,magnetometers:2*magnetometers]
-    B_sin = centroids[:,2*magnetometers:]
+
+    "Extract components"
+    centroids = centroids.reshape(centroids.shape[0], 3, centroids.shape[1]//3) # Shape: (n_clusters, axes, sensors * axes)
+    gain = centroids.T[:sensors].T
+    B_cos = centroids.T[sensors:2*sensors].T
+    B_sin = centroids.T[2*sensors:].T
     phase = np.arctan2(B_sin, B_cos)
-    
-    "Normalize Gain"
-    norms = np.sqrt((gain**2).sum(axis=1,keepdims=True))
-    gain = np.where(norms!=0,gain/norms,0.)
-    
+
     "Form Mixing Matrix"
-    mixingMatrix = gain *  np.exp(1j*phase)
-     
-    "Update Global Mixing Matrix"
-    updateCentroids(mixingMatrix.T)
+    mixingMatrix = gain * np.exp(1j*phase)
+    mixingMatrix = mixingMatrix.transpose(2,0,1) # Shape: (n_sensors, n_clusters, axes)
+    updateCentroids(mixingMatrix)
     return
 
+def build_block_diag_matrix(centroids):
+    """
+    Given `centroids` of shape (n_clusters, n_sensors, n_axes),
+    build a block-diagonal matrix A_big of shape:
+        (n_sensors * n_axes) x (n_clusters * n_axes)
+    where each diagonal block is A_axis = (n_sensors x n_clusters)
+    for the corresponding axis.
+    """
+    n_clusters, n_sensors, n_axes = centroids.shape
+
+    blocks = []
+    for ax in range(n_axes):
+        # centroids[:, :, ax] has shape (n_clusters, n_sensors)
+        # we usually want (n_sensors, n_clusters) to multiply by x of shape (n_clusters,)
+        A_axis = centroids[:, :, ax].T  # shape => (n_sensors, n_clusters)
+        blocks.append(A_axis)
+    
+    # Block-diagonal stacking
+    # Final shape = (n_sensors*n_axes,  n_clusters*n_axes)
+    A_big_np = block_diag(*blocks)
+    return A_big_np
+
+def processData(A_big, b_big, n_clusters, data):
+    """
+    A_big : cp.Parameter, shape = (n_sensors*n_axes, n_clusters*n_axes)
+    b_big : cp.Parameter, shape = (n_sensors*n_axes,)
+    data  : a 2D measurement in original shape => we flatten it before passing here,
+            or pass it already flattened in weightedReconstruction.
+    
+    We'll reconstruct x in (n_clusters, 3) by first defining x_big in (n_clusters*3,).
+    """
+
+    # Number of axes we assume is 3
+    n_axes = 3
+    # A_big.shape[0] = n_sensors*n_axes
+
+    # Define x_big as a 1D variable that we'll reshape
+    x_big = cp.Variable(shape=(n_clusters * n_axes,), complex=True)
+
+    # For weighting:
+    weights = np.ones(n_clusters)/n_clusters
+    w = cp.Parameter(shape=(n_clusters,), value=weights, nonneg=True)
+
+    # We'll reshape x_big back to (n_clusters, 3) for the L1 penalty
+    x_2d = cp.reshape(x_big, (n_clusters, n_axes))
+
+    # Dantzig-type constraint: norm(A.T @ (A@x - b), inf) <= 0.01
+    # Here, A_big@x_big => shape (n_sensors*n_axes,)
+    # b_big             => shape (n_sensors*n_axes,)
+    constraints = [
+        cp.norm(A_big.T @ (A_big @ x_big - b_big), 'inf') <= 0.01
+    ]
+
+    # Weighted L1 norm on x_2d
+    # w^T@|x_2d| => shape mismatch unless we sum across axes
+    # Your original code is cp.sum(w.T @ cp.abs(x)),
+    # which works if cp.abs(x) is (n_clusters, 3) and w is (n_clusters,).
+    # That yields a shape (3,) expression. Usually you'd sum again, but let's match your code style:
+    #objective = cp.Minimize(cp.sum(w.T @ cp.abs(x_2d)))
+    #objective = cp.Minimize(cp.sum(cp.multiply(w[:, None], cp.abs(x_2d))))
+    objective = cp.Minimize(
+        cp.sum(cp.multiply(w, cp.norm(x_2d, p=2, axis=1)))
+    )
+    problem = cp.Problem(objective, constraints)
+
+    # Assign the flattened measurement
+    b_big.value = data  # must be shape (n_sensors*n_axes,)
+
+    # Solve
+    problem.solve(warm_start=True)
+
+    return x_big.value
+
+def weightedReconstruction(sig):
+    """
+    Performs the reconstruction for each 'frame' (or slice) of `sig`
+    using a parallel pool. The result is shaped accordingly.
+    
+    sig : shape (n_sensors, num_samples, n_axes) or something similar
+          so that sig.T might get you an iterable over the time dimension.
+    """
+    # 1) Gather cluster centroids as an array of shape (n_clusters, n_sensors, n_axes)
+    n_clusters = len(clusterCentroids)
+    centroids = np.array([clusterCentroids[i] for i in clusterCentroids.keys()])
+    # Now centroids has shape (n_clusters, n_sensors, n_axes)
+
+    # 2) Build the block-diagonal version of A
+    A_big_np = build_block_diag_matrix(centroids)
+    # shape => (n_sensors * n_axes,  n_clusters * n_axes)
+    
+    # Create CVXPY parameters for A_big and b_big
+    A_big = cp.Parameter(shape=A_big_np.shape, complex=True, value=A_big_np)
+    b_big = cp.Parameter(shape=(magnetometers * 3,), complex=True)
+
+    # Check shapes
+    print("A_big shape =", A_big.value.shape)
+
+    # 3) Prepare data array
+    #  sig is presumably shape (magnetometers, something, 3),
+    #  so sig.T => shape (something, magnetometers, 3).
+    #  We'll iterate over each slice in 's'.
+    s = np.transpose(sig, (2, 0, 1))  # shape => (# frames, magnetometers, 3) if sig was (magnetometers, #frames, 3)
+    s = np.array(s)
+
+    # 4) We'll pass partial(...) with the processData function
+    func = partial(processData, A_big, b_big, n_clusters)
+
+    # 5) Use multiprocessing
+ 
+    results = []
+    for frame in tqdm.tqdm(s, total=len(s)):
+        # Flatten the frame to shape (magnetometers*3,)
+        flat_frame = frame.reshape(-1)
+        # Call processData directly with the flattened frame
+        result = func(flat_frame)
+        results.append(result)
+    """
+    results = []
+    with mp.Pool(processes=mp.cpu_count()) as pool:
+        results = list(tqdm.tqdm(pool.imap(func, 
+                                           # Flatten each slice to shape (magnetometers*3,)
+                                           (frame.reshape(-1) for frame in s),
+                                           # or you can do direct pass if you already shaped them
+                                          ), 
+                                 total=len(s)))  
+    """
+
+    # 6) Convert results to desired shape:
+    # Each 'result' is x_big, shape (n_clusters*3,)
+    # We might want shape (#frames, 3, n_clusters), or something else
+    results = np.array(results)  # shape (#frames, n_clusters*3)
+    
+    # We'll reshape each row to (n_clusters,3), then transpose as needed
+    # If you want final shape (sig.shape[2], 3, n_clusters) like your original code:
+    #   sig.shape[2] might be #frames. Let's assume #frames = results.shape[0].
+    #   Then each result row => (n_clusters, 3).
+    #   Then we store it in shape (#frames, 3, n_clusters).
+    # This is an example—adjust if you want a different layout:
+    reshaped = []
+    for row in results:
+        # row => (n_clusters*3,)
+        x_2d = row.reshape(n_clusters, 3)  # shape (n_clusters, 3)
+        x_2d = x_2d.T                     # shape (3, n_clusters)
+        reshaped.append(x_2d)
+    r = np.array(reshaped)  # shape (#frames, 3, n_clusters)
+
+    # If you want to transpose to return shape (n_clusters, 3, #frames), do .transpose
+    # but let's just return r as is
+    return r.T
+   
 """Define a function to demix a signal using non-stationary Gabor transform (NSGT)"""
 def demixNSGT(sig):
     "Create instance of NSGT and set NSGT parameters"
+    sensors, axes, length = sig.shape
+    sig_flat = sig.reshape(sensors*axes, length)
     length = sig.shape[-1]
     bins = bpo
     fmax = fs/2
-    lowf = 2 * bpo * fs / length
+    lowf = 8 * bpo * fs / length
     nsgt = CQ_NSGT(lowf, fmax, bins, fs, length, multichannel=True)
     
     "Apply the forward transform to the signal and convert to numpy array"
-    B = nsgt.forward(sig)
+    B = nsgt.forward(sig_flat)
     B = np.array(B, dtype=object)
     
     "Get the shapes of each subband in each channel"
     shapes = np.array([i.shape[-1] for i in B[0]])
     
     "Stack and concatenate the subbands from each channel into a matrix"
-    B_nsgt = np.vstack([np.hstack(B[i]) for i in range(magnetometers)])
+    B_nsgt = np.vstack([np.hstack(B[i]) for i in range(sensors*axes)])
+    B_nsgt = B_nsgt.reshape(sensors, axes, B_nsgt.shape[-1])
     
     "Separate Signals"
     B_reconstructed = weightedReconstruction(B_nsgt)
+    r_flat = B_reconstructed.reshape(sensors*axes, B_reconstructed.shape[-1])
 
-        
     "Split the matrix into subbands for each channel"
     S_nsgt = []
-    for arr in B_reconstructed:
+    for arr in r_flat:
         index = 0
         sig = []
         for shape in shapes:
@@ -302,91 +419,7 @@ def demixNSGT(sig):
     "Save Result"
     global result
     result = np.array(sig_r)
+    result = result.reshape(sensors, axes, result.shape[-1])
     
     return(result)
  
-def updateCentroids(newCentroids, learnRate = 0.1):
-    "Check if Clusters are in the global mixing matrix"
-    if newCentroids.T.size > 0: ## Check if no new centroids
-        for centroid in newCentroids.T:
-            
-            newC = True
-            for cluster in clusterCentroids:
-                a = np.real(clusterCentroids[cluster]) / np.linalg.norm(clusterCentroids[cluster]);
-                b = np.real(centroid)/np.linalg.norm(centroid)
-                angle = np.arccos(np.clip(np.dot(a, b), -1.0, 1.0))
-                if(angle < np.deg2rad(sspTol)):
-                    if(cluster != 0):
-                        clusterCentroids[cluster] = clusterCentroids[cluster] + learnRate * (centroid - clusterCentroids[cluster])
-                    newC = False
-            
-            "Add New Cluster"        
-            if(newC):
-                clusterCentroids[len(clusterCentroids)] = centroid
-    return(np.array([clusterCentroids[i] for i in clusterCentroids.keys()]))
-    
-"UTILITY FUNCTIONS"   
-def frequencyPlot(F, title="Frequency Plot", hypersphere = False, plot_density = False, pm = False):
-    fig = plt.figure()
-    fig.suptitle(title)
- 
-    x,y,z = F[0],F[1],F[2]
-    
-    if(plot_density):
-        xyz = np.vstack([F[0],F[1],F[2]])
-        density = gaussian_kde(xyz)(xyz) 
-        idx = density.argsort()
-        x, y, z, density = x[idx], y[idx], z[idx], density[idx]
-    
-    ax = fig.add_subplot(projection='3d')
-    if(hypersphere):
-        n_theta = 50 # number of values for theta
-        n_phi = 200  # number of values for phi
-        r = 1       #radius of sphere
-        theta, phi = np.mgrid[0.0:0.5*np.pi:n_theta*1j, 0.0:2.0*np.pi:n_phi*1j]
-        x = r*np.sin(theta)*np.cos(phi)
-        y = r*np.sin(theta)*np.sin(phi)
-        z = r*np.cos(theta)
-        ax.plot_wireframe(x, y, z, rstride=10, cstride=10, color='grey')
-    
-    if(plot_density):
-        ax.scatter(x, y, z, c=density)
-    else:
-        ax.scatter(x, y, z)
-    ax.set_xlabel('B*(t,k)', fontsize = '12')
-    ax.set_ylabel('B*(t,k)', fontsize = '12')
-    ax.set_zlabel('B*(t,k)', fontsize = '12') 
-    ax.tick_params(labelsize='8' )
-        
-    plt.show()
-   
-def rip_check(A, k=1, p=1):
-    # A: numpy matrix
-    # k: sparsity level
-    # p: norm parameter
-    m, n = A.shape # get matrix dimensions
-    delta = 0 # initialize RIP constant
-    for i in range(n): # loop over all columns
-        x = np.zeros(n) # create a zero vector
-        x[i] = 1 # set one entry to one (unit vector)
-        indices = np.random.choice(n, k-1, replace=False) # choose k-1 random indices
-        x[indices] = np.random.randn(k-1) # set those entries to random values (sparse vector)
-        ratio = np.linalg.norm(A @ x, p) / np.linalg.norm(x, p) # compute ratio of norms
-        delta = max(delta, abs(ratio - 1)) # update RIP constant if ratio is larger than previous value
-    return delta # return RIP constant
-
-def calculate_delta_s(A, x):
-    # A: sensing matrix
-    # x: signal estimate (vector)
-    # Calculate the norm of A @ x and x
-    Ax_norm = np.linalg.norm(A @ x, 2)
-    x_norm = np.linalg.norm(x, 2)
-    
-    # Calculate the ratio of the norms squared
-    ratio = (Ax_norm / x_norm) ** 2
-    
-    # Estimate the RIP constant delta_s for the current support of x
-    # It's the maximum deviation of the ratio from 1
-    delta_s = max(abs(ratio - 1), abs(1 - ratio))
-    
-    return delta_s
