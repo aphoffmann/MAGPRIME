@@ -157,7 +157,6 @@ def weightedReconstruction(sig):
     
     "Define CVXPY parameters"
     A = cp.Parameter(shape=centroids.T.shape, value=centroids.T, complex=True)
-    print(np.round(A.value,2))
     b = cp.Parameter(shape = magnetometers, complex=True)   
     
     "Pack constants together"

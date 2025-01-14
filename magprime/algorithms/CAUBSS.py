@@ -245,6 +245,97 @@ def build_block_diag_matrix(centroids):
     A_big_np = block_diag(*blocks)
     return A_big_np
 
+def build_block_diag_matrix_amb(centroids):
+    n_clusters, n_sensors, n_axes = centroids.shape
+
+    blocks = []
+    for ax in range(n_axes):
+        # centroids[:, :, ax] has shape (n_clusters, n_sensors)
+        # we usually want (n_sensors, n_clusters) to multiply by x of shape (n_clusters,)
+        A_axis = np.zeros((n_sensors,n_clusters))  # shape => (n_sensors, n_clusters)
+        A_axis[:,0] = 1
+        blocks.append(A_axis)
+    A_big_np = block_diag(*blocks)
+    return A_big_np
+
+def buildLaplacianOperator(mag_positions):
+    """
+    Build a (3M x 3M) matrix L that approximates the Laplacian of the magnetic field
+    at each sensor using finite differences along nearest neighbors.
+
+    Parameters
+    ----------
+    mag_positions : np.ndarray of shape (M, 3)
+        The (x, y, z) positions of each of the M magnetometers.
+
+    Returns
+    -------
+    L : np.ndarray of shape (3*M, 3*M)
+        A naive discrete Laplacian operator.
+    """
+    M = len(mag_positions)
+    L = np.zeros((3*M, 3*M), dtype=float)
+
+    # Helper indexers for axis-major B:
+    def idx_x(m): return m
+    def idx_y(m): return M + m
+    def idx_z(m): return 2*M + m
+
+    # For each sensor, build second derivative approximations for each axis
+    for axis in range(3):  # 0->x, 1->y, 2->z
+        # Sort sensors by coordinate along this axis
+        sorted_indices = np.argsort(mag_positions[:, axis])
+        
+        for idx in sorted_indices:
+            # Index conversion for accessing corresponding rows/cols in L
+            if axis == 0:
+                row = idx_x(idx)
+            elif axis == 1:
+                row = idx_y(idx)
+            else:
+                row = idx_z(idx)
+            
+            # Find neighbors along the axis
+            neighbors = []
+            # Try to get previous neighbor in sorted order
+            prev_idx = np.where(sorted_indices == idx)[0][0] - 1
+            if prev_idx >= 0:
+                neighbors.append(sorted_indices[prev_idx])
+            # Try to get next neighbor in sorted order
+            next_idx = np.where(sorted_indices == idx)[0][0] + 1
+            if next_idx < len(sorted_indices):
+                neighbors.append(sorted_indices[next_idx])
+            
+            # If no neighbors found, skip Laplacian approximation
+            if not neighbors:
+                continue
+            
+            # Use distances for finite difference approximation
+            coeff_center = 0.0
+            for n in neighbors:
+                # Determine column index corresponding to neighbor and axis
+                if axis == 0:
+                    col = idx_x(n)
+                elif axis == 1:
+                    col = idx_y(n)
+                else:
+                    col = idx_z(n)
+                
+                # Distance between sensor i and neighbor n along current axis
+                d = mag_positions[n, axis] - mag_positions[idx, axis]
+                if np.isclose(d, 0):
+                    continue
+                
+                # Off-diagonal term for neighbor contribution
+                L[row, col] = 1.0 / (d**2)
+                coeff_center -= 1.0 / (d**2)
+            
+            # Center coefficient: sum contributions from neighbors
+            L[row, row] = -coeff_center
+
+    return L
+
+
 def findCurlOperator(mag_positions):
     """
     Build a (3M x 3M) matrix D that, when multiplied by a magnetic field vector
@@ -360,7 +451,7 @@ def findCurlOperator(mag_positions):
 
     return D
 
-def processData(A_big, b_big, n_clusters, D, data):
+def processData(A_big, A_big_amb, b_big, n_clusters, D, data):
     """
     A_big : cp.Parameter, shape = (n_sensors*n_axes, n_clusters*n_axes)
     b_big : cp.Parameter, shape = (n_sensors*n_axes,)
@@ -385,14 +476,12 @@ def processData(A_big, b_big, n_clusters, D, data):
 
     # Dantzig-type constraint: norm(A.T @ (A@x - b), inf) <= 0.01
     constraints = [
-        cp.norm(A_big.T @ (A_big @ x_big - b_big), 'inf') <= 0.01
+        cp.norm(A_big.T @ (A_big @ x_big - b_big), 'inf') <= 0.01,
+        cp.norm( D @ A_big_amb @ x_big, 2) <= 0.01,
     ]
 
     # Weighted L1 norm on x_2d
     objective = cp.Minimize(cp.sum(cp.multiply(w, cp.norm(x_2d, p=1, axis=0))))
-    if(D is not None):
-        objective += cp.Minimize(cp.norm(D @ A_big @ x_big, 2))
-    
     problem = cp.Problem(objective, constraints)
 
     # Assign the flattened measurement
@@ -403,6 +492,8 @@ def processData(A_big, b_big, n_clusters, D, data):
         problem.solve()
     except:
         problem.solve(solver=cp.SCS, verbose = True,)
+
+    # Todo check if larger than smallest
 
     return x_big.value
 
@@ -420,14 +511,13 @@ def weightedReconstruction(sig):
 
     # 2) Build the block-diagonal version of A
     A_big_np = build_block_diag_matrix(centroids)
+    A_big_np_amb = build_block_diag_matrix_amb(centroids)
     # shape => (n_sensors * n_axes,  n_clusters * n_axes)
     
     # Create CVXPY parameters for A_big and b_big
     A_big = cp.Parameter(shape=A_big_np.shape, complex=True, value=A_big_np)
+    A_big_amb = cp.Parameter(shape=A_big_np_amb.shape, complex=True, value=A_big_np_amb)
     b_big = cp.Parameter(shape=(magnetometers * 3,), complex=True)
-
-    # Check shapes
-    print("A_big shape =", A_big.value.shape)
 
     # 3) Prepare data array
     s = np.transpose(sig, (2, 0, 1))  # shape => (# frames, magnetometers, axes) 
@@ -437,9 +527,9 @@ def weightedReconstruction(sig):
     if mag_positions is not None:
         D = findCurlOperator(mag_positions)
         D_big = cp.Parameter(shape=D.shape, value=D)
-        func = partial(processData,A_big, b_big, n_clusters, D_big)
+        func = partial(processData,A_big, A_big_amb, b_big, n_clusters, D_big)
     else:
-        func = partial(processData, A_big, b_big, n_clusters, None)
+        func = partial(processData, A_big, A_big_amb, b_big, n_clusters, None)
     # 5) Use multiprocessing
     """
     results = []
