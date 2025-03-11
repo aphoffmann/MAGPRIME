@@ -164,7 +164,7 @@ def weightedReconstruction(sig):
     func = partial(processData, A, b, n_clusters)
     
     "Use multiprocessing pool to map processData function over s array"
-    with mp.Pool(processes=mp.cpu_count()) as pool:
+    with mp.Pool(processes=mp.cpu_count()-1) as pool:
         # Use imap_unordered and tqdm
         result = list(tqdm.tqdm(pool.imap(func, s), total=np.max(s.shape)))
     
