@@ -86,4 +86,4 @@ Please ensure that your code follows the existing style guidelines and that you 
 ## Citation
 If you use MAGPRIME in your research, please consider citing our paper:
 
-[Your Name], [Co-author Names]. (Year). Advancing Space Science: A Critical Review of Magnetometer Noise Removal Techniques and the Development of an Open-Source Test-Bed. Journal Name, Volume(Issue), Pages. DOI: [DOI Number]
+Hoffmann, A. P., Moldwin, M. B., Imajo, S., Finley, M. G., & Sheinker, A. (2024). MAGPRIME: An open‐source library for benchmarking and developing interference removal algorithms for spaceborne magnetometers. Earth and Space Science, 11(6), e2024EA003675.
