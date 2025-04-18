@@ -1,22 +1,22 @@
 # magprime/algorithms/__init__.py
 
 # ---- Interference removers ----
-from .interference.ICA    import ICA
-from .interference.MSSA   import MSSA
-from .interference.NESS   import NESS
-from .interference.NESSA  import NESSA
-from .interference.NEUBAUER import NEUBAUER
-from .interference.PiCoG  import PiCoG
-from .interference.RAMEN  import RAMEN
-from .interference.REAM   import REAM
-from .interference.SHEINKER import SHEINKER
-from .interference.UBSS   import UBSS
-from .interference.WAICUP import WAICUP
-from .interference.WNEUBAUER import WNEUBAUER
+from .interference    import ICA
+from .interference   import MSSA
+from .interference   import NESS
+from .interference  import NESSA
+from .interference import NEUBAUER
+from .interference  import PiCoG
+from .interference  import RAMEN
+from .interference   import REAM
+from .interference import SHEINKER
+from .interference   import UBSS
+from .interference import WAICUP
+from .interference import WNEUBAUER
 
 
 # ---- Anomaly detectors ----
-from .anomaly.EventDetection import EventDetection
+from .anomaly import EventDetection
 
 
 __all__ = [
