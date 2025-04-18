@@ -16,7 +16,7 @@ from .interference import WNEUBAUER
 
 
 # ---- Anomaly detectors ----
-from .anomaly import EventDetection
+from .anomaly import EventDetector
 
 
 __all__ = [
