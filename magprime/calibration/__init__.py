@@ -1,3 +1,3 @@
-from thinshell import thinshell
+from .thinshell import thinshell
 
 __all__ = ['thinshell']
