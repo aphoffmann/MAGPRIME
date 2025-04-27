@@ -148,7 +148,7 @@ def processData(A, b, n_clusters, data):
 def weightedReconstruction(sig):
     "Get the number of clusters and initialize an empty result array"
     n_clusters = len(clusterCentroids)
-    result = np.zeros((sig.shape[1], n_clusters), dtype = 'complex_')
+    result = np.zeros((sig.shape[1], n_clusters), dtype = complex)
     
     "Convert the cluster centroids and signal to numpy arrays"
     centroids = np.array([clusterCentroids[i] for i in clusterCentroids.keys()])
