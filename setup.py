@@ -22,7 +22,8 @@ REQUIREMENTS = [
 
 DEPENDENCY_LINKS = [    
     'git+https://github.com/aphoffmann/wavelets.git',
-    'git+https://github.com/aphoffmann/pymssa.git'
+    'git+https://github.com/aphoffmann/pymssa.git',
+    'git+https://github.com/aphoffmann/invertiblewavelets.git'
 
     
 ]
