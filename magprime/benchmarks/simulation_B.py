@@ -47,7 +47,7 @@ def noiseReactionWheel(fs, N, base_freq, seed):
 
 def noiseMichibiki():
     "Import the magnetometer data from the file"
-    qzs_1 = np.loadtxt(r"examples\SPACE_DATA\michibiki.dat", dtype=np.float, usecols=(0,4,5,6,7,8,9))
+    qzs_1 = np.loadtxt(r"examples\SPACE_DATA\michibiki.dat", dtype=float, usecols=(0,4,5,6,7,8,9))
     B_qzs = qzs_1.T
 
     "Subtract the bias from the magnetometer data"
