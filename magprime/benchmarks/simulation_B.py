@@ -14,6 +14,7 @@ import scipy.spatial.transform as st
 import tqdm
 import os
 from scipy.signal import butter, lfilter
+from magprime import utility
 
 "Noise Reduction Algorithms"
 from magprime.algorithms import ICA, MSSA, NESS, PiCoG, SHEINKER, REAM, UBSS, WAICUP
@@ -47,23 +48,9 @@ def noiseReactionWheel(fs, N, base_freq, seed):
 
 def noiseMichibiki():
     "Import the magnetometer data from the file"
-    qzs_1 = np.loadtxt(r"examples\SPACE_DATA\michibiki.dat", dtype=float, usecols=(0,4,5,6,7,8,9))
-    B_qzs = qzs_1.T
-
-    "Subtract the bias from the magnetometer data"
-    B_qzs[1] -= 60 # MAM-S1 X-Axis
-    B_qzs[2] -= 410 # MAM-S1 Y-Axis
-    B_qzs[3] -= -202 # MAM-S1 Z-Axis
-    B_qzs[4] -= -528 # MAM-S2 X-Axis
-    B_qzs[5] -= -200 # MAM-S2 Y-Axis
-    B_qzs[6] -= 478 # MAM-S2 Z-Axis
-
-    Bx = B_qzs[4] - B_qzs[1]
-    By = B_qzs[5] - B_qzs[2]
-    Bz = B_qzs[6] - B_qzs[3]
-    michibiki = np.vstack((Bx,By,Bz))
-    #michibiki -= uniform_filter1d(michibiki, size=500, axis = -1)
-    return(michibiki)
+    B = utility.load_michibiki_data()
+    interference = np.squeeze(B[1] - B[0])
+    return(interference)
 
 def noiseArcjet(N, seed = 0):
     # Defining a function that takes an integer N and an optional integer seed as parameters
@@ -175,16 +162,14 @@ def run():
     signals = np.zeros((5, samples.shape[0]))
 
     "Import ambient magnetic field signal."
-    df=pd.read_csv('examples\SPACE_DATA\Swarm_MAGA_HR_20150317_0900.csv', sep=',',header=None)
-    r = df[10]
-    swarm = np.array([np.fromstring(r[i][1:-1], dtype=float, sep=' ') for i in range(1, r.shape[0])]).T[:,160000:160000+N]
+    swarm = utility.load_swarm_data(160000, 160000 + N)
 
     "Import Michibiki Data"
     michibiki = noiseMichibiki()
 
-    if os.path.exists("magprime_results_C.csv"):
+    if os.path.exists("magprime_results_B.csv"):
         # Read the existing CSV file and get the last seed value
-        results = pd.read_csv("magprime_results_C.csv")
+        results = pd.read_csv("magprime_results_B.csv")
         last_seed = results["seed"].iloc[-1]
     else:
         # Create an empty data frame with columns
