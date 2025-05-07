@@ -19,7 +19,7 @@ import numpy as np
 from wavelets import WaveletAnalysis
 from scipy.ndimage import uniform_filter1d
 import itertools
-
+from invertiblewavelets import Transform
 
 "General Parameters"
 uf = 400            # Uniform Filter Size for detrending
@@ -31,23 +31,38 @@ dj = 1/12           # Wavelet Scale Spacing
 scales = None       # Scales used in the wavelet transform
 lowest_freq = None  # Lowest frequency in the wavelet transform
 boom = None         # Trend to use during retrending process
+filterbank = None   # Custom FilterBank Implimentation
 
 def clean(B, triaxial = True):
     """
     B: magnetic field measurements from the sensor array (n_sensors, axes, n_samples)
     triaxial: boolean for whether to use triaxial or uniaxial ICA
     """
-
-    if(triaxial):
-        result = np.zeros((3, B.shape[-1]))
-        for axis in range(3):
-            result[axis] = cleanWAICUP(B[:,axis,:])
-        return(result)
+    if filterbank is None:
+        if(triaxial):
+            result = np.zeros((3, B.shape[-1]))
+            for axis in range(3):
+                result[axis] = cleanWAICUP(B[:,axis,:])
+            return(result)
+        
+        else:
+            "B: (n_sensors, n_samples)"
+            result = cleanWAICUP(B)
+            return(result)
+        
     else:
-        "B: (n_sensors, n_samples)"
-        result = cleanWAICUP(B)
-        return(result)
-    
+        print('Using Filterbank')
+        if(triaxial):
+            result = np.zeros((3, B.shape[-1]))
+            for axis in range(3):
+                result[axis] = _clean_fb(B[:,axis,:], filterbank)
+            return(result)
+        
+        else:
+            result = _clean_fb(B, filterbank)
+            return(result)
+            
+
 def cleanWAICUP(sensors):
     dt = 1/fs    
 
@@ -131,3 +146,36 @@ def multi(sig, dt, dj):
     "Return Ambient Magnetic Field"
     return(amb_mf)
 
+def _clean_fb(B, fb):
+    transform = Transform.from_filterbank(fb)
+    pair_indices = list(itertools.combinations(range(B.shape[0]), 2))
+    X_list = []
+
+    # Step 1: WAICUP in the filterbank / wavelet domain
+    for i, j in pair_indices:
+        w1 = transform.forward(B[i], mode='full')   # → (J, T), complex
+        w2 = transform.forward(B[j], mode='full')   # → (J, T), complex
+
+        D   = w2 - w1                               # (J, T)
+        C1  = np.sum(D * np.conj(w1), axis=1)       # (J,)
+        C2  = np.sum(D * np.conj(w2), axis=1)       # (J,)
+        K   = C2 / C1                               # (J,)
+
+        # ambient-wavelet estimate X(s,τ)  eq(10)
+        Xij = (K[:,None]*w1 - w2) / (K[:,None] - 1) # (J, T)
+        X_list.append(Xij)
+
+    # Step 2: pick the minimum‐magnitude X across all pairs
+    X_stack = np.stack(X_list, axis=0)              # (n_pairs, J, T)
+    abs_X   = np.abs(X_stack)                       # (n_pairs, J, T)
+    winner  = np.argmin(abs_X, axis=0)              # (J, T)
+
+    # fancy‐indexing to grab the winning X(s,τ) at each scale/time
+    J, T = winner.shape
+    jj, tt = np.indices((J, T))
+    X_sel = X_stack[winner, jj, tt]                 # (J, T)
+
+    # Step 3: one inverse transform back to the time series
+    ambient = transform.inverse(X_sel, mode='full')  # (T,)
+
+    return ambient

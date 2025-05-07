@@ -17,12 +17,14 @@ REQUIREMENTS = [
     'keyboard',
     'wavelets @ git+https://github.com/aphoffmann/wavelets.git',
     'pymssa @ git+https://github.com/aphoffmann/pymssa.git',
-    'nsgt @ git+https://github.com/aphoffmann/nsgt.git'
+    'nsgt @ git+https://github.com/aphoffmann/nsgt.git',
+    'invertiblewavelets @ git+https://github.com/aphoffmann/invertiblewavelets.git'
 ]
 
 DEPENDENCY_LINKS = [    
     'git+https://github.com/aphoffmann/wavelets.git',
     'git+https://github.com/aphoffmann/pymssa.git',
+    'git+https://github.com/aphoffmann/invertiblewavelets.git',
     'git+https://github.com/aphoffmann/invertiblewavelets.git'
 
     
