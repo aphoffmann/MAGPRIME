@@ -51,7 +51,6 @@ def clean(B, triaxial = True):
             return(result)
         
     else:
-        print('Using Filterbank')
         if(triaxial):
             result = np.zeros((3, B.shape[-1]))
             for axis in range(3):
