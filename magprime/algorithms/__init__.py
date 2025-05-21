@@ -18,9 +18,11 @@ from .interference import WNEUBAUER
 # ---- Anomaly detectors ----
 from .anomaly import EventDetector
 
+# ---- Geological Survey Methods ----
+from .survey import PFSS
 
 __all__ = [
     "ICA", "MSSA", "NESS", "NESSA", "NEUBAUER", "PiCoG",
     "RAMEN", "REAM", "SHEINKER", "UBSS", "WAICUP", "WNEUBAUER",
-    "EventDetection",
+    "EventDetection", "PFSS"
 ]
