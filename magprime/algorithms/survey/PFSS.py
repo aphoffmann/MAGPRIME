@@ -193,8 +193,35 @@ def hard_threshold(M, zeta):
 
 def pfss(X, r_max, beta=0.8, max_iter=10, eps=1e-4, verbose=False):
     """
-    Non-convex low-rank + sparse decomposition on X.
-    Returns (X_lowrank, X_sparse).
+    Perform a non-convex decomposition of X into a low-rank part and a sparse part.
+
+    This uses an alternating scheme: at each target rank k (up to r_max), it
+    computes a truncated RSVD to update the low-rank approximation, then
+    applies a hard threshold (scaled by beta) to the residual to extract sparse
+    outliers. Iteration at each k continues until the low-rank update changes
+    by less than eps or max_iter is reached.
+
+    Parameters
+    ----------
+    X : ndarray, shape (P, Q)
+        Input data matrix to decompose.
+    r_max : int
+        Maximum rank of the low-rank component.
+    beta : float, default=0.8
+        Scaling factor for the singular-value‐based threshold used in sparse extraction.
+    max_iter : int, default=10
+        Maximum number of inner refinement iterations at each rank.
+    eps : float, default=1e-4
+        Convergence tolerance on the change in the low-rank component.
+    verbose : bool, default=False
+        If True, print iteration diagnostics.
+
+    Returns
+    -------
+    X_lowrank : ndarray
+        Low-rank approximation of X.
+    X_sparse : ndarray
+        Sparse residual (X − X_lowrank), containing thresholded “outliers.”
     """
     P, Q = X.shape
 
