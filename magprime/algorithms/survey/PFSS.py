@@ -237,7 +237,7 @@ def pfss(X, r_max, beta=0.8, max_iter=10, eps=1e-4, verbose=False):
 
 def ssa(X, r_max):
     "Take SVD"
-    U, s, Vt = fast_rsvd(X, r_max=r_max) 
+    U, s, Vt = fast_rsvd(X, rank=r_max) 
 
     "Sort by descending singular Values"
     idx      = np.argsort(-s)
