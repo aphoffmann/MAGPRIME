@@ -235,32 +235,32 @@ def pfss(X, r_max, beta=0.8, max_iter=10, eps=1e-4, verbose=False):
     X_sparse = X - X_low
     return X_low, X_sparse
 
-def ssa(X, r):
-    # 1. Obtain SVD factors of the (implicit) trajectory matrix
-    U, s, Vt = fast_rsvd(X, r=r)      # any order
+def ssa(X, r_max):
+    "Take SVD"
+    U, s, Vt = fast_rsvd(X, r_max=r_max) 
 
-    # ---- sort by descending σ
-    idx      = np.argsort(-s)         # minus → descending
+    "Sort by descending singular Values"
+    idx      = np.argsort(-s)
     s        = s[idx]
     U        = U[:, idx]
     Vt       = Vt[idx, :]
 
-    # 2. dimensions & convolution weights for inverse projection
+    "Dimensions & convolution weights for inverse projection"
     P, Q  = X.shape
     K, Kh = (P + 1) // 2, (Q + 1) // 2
     L, Lh = P - K + 1,   Q - Kh + 1
     counts = fftconvolve(np.ones((K, Kh)),
                          np.ones((L, Lh)), mode="full")
 
-    # 3. helper: reconstruct one elementary component
+    "Helper: reconstruct one elementary component"
     def Xi(i):
         Ui = U[:, i].reshape(K, Kh, order='F')
         Vi = Vt[i, :].reshape(L, Lh, order='F')
         return s[i] * fftconvolve(Ui, Vi, mode='full') / counts
 
-    # 4. stack all r components
-    comps = np.empty((r, P, Q), dtype=X.dtype)
-    for k in range(r):
+    "stack all r components"
+    comps = np.empty((r_max, P, Q), dtype=X.dtype)
+    for k in range(r_max):
         comps[k] = Xi(k)
 
     return comps
