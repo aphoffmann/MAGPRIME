@@ -1,3 +1,18 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║              █ █ █ █ █   MAGPRIME Toolkit   █ █ █ █ █                        ║
+# ║ ──────────────────────────────────────────────────────────────────────────── ║
+# ║  Module       :  NESS.py                                                     ║
+# ║  Package      :  magprime                                                    ║
+# ║  Author       :  Dr. Alex P. Hoffmann  <alex.p.hoffmann@nasa.gov>            ║
+# ║  Affiliation  :  NASA Goddard Space Flight Center — Greenbelt, MD 20771      ║
+# ║  Created      :  2025-05-21                                                  ║
+# ║  Last Updated :  2025-05-22                                                  ║
+# ║  Python       :  ≥ 3.10                                                      ║
+# ║  License      :  MIT — see LICENSE.txt                                       ║
+# ║                                                                              ║
+# ║  Description  : NESS gradiometry to subtract common-mode noise               ║
+# ║                 across a multi-sensor array                                  ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 Author: Alex Hoffmann
 Last Update: 9/19/2023

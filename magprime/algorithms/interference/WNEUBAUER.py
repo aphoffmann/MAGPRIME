@@ -1,3 +1,17 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║              █ █ █ █ █   MAGPRIME Toolkit   █ █ █ █ █                        ║
+# ║ ──────────────────────────────────────────────────────────────────────────── ║
+# ║  Module       :  WNEUBAUER.py                                                ║
+# ║  Package      :  magprime                                                    ║
+# ║  Author       :  Dr. Alex P. Hoffmann  <alex.p.hoffmann@nasa.gov>            ║
+# ║  Affiliation  :  NASA Goddard Space Flight Center — Greenbelt, MD 20771      ║
+# ║  Created      :  2025-05-21                                                  ║
+# ║  Last Updated :  2025-05-22                                                  ║
+# ║  Python       :  ≥ 3.10                                                      ║
+# ║  License      :  MIT — see LICENSE.txt                                       ║
+# ║                                                                              ║
+# ║  Description  : Neubauer algorithm implemented in the wavelet domain         ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 Author: Alex Hoffmann
 Last Update: 10/09/2024
