@@ -1,7 +1,14 @@
 '''
-Title: LikelihoodRatio.py
-Authors: Matthew G. Finley (NASA GSFC & UMD, College Park -- matthew.g.finley@nasa.gov)
-Description: TODO
+Title: 
+    LikelihoodRatio.py
+Authors: 
+    Matthew G. Finley (NASA GSFC & UMD, College Park -- matthew.g.finley@nasa.gov)
+Description: 
+    Implementation of a likelihood ratio-based method of spectral track detection. 
+    Methodology originally described in 'An Image Processing Approach to Frequency Tracking (Application
+    to Sonar Data)' by Abel et al., 1992 IEE International Conference on Acoustics, Speech, and Signal 
+    Processing (1992).
+    
 '''
 import numpy as np
 from scipy.stats import trim_mean

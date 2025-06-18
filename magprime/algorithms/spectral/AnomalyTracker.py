@@ -1,7 +1,14 @@
 '''
-Title: AnomalyTracker.py
-Authors: Matthew G. Finley (NASA GSFC & UMD, College Park -- matthew.g.finley@nasa.gov)
-Description: TODO
+Title: 
+    AnomalyTracker.py
+Authors: 
+    Matthew G. Finley (NASA GSFC & UMD, College Park -- matthew.g.finley@nasa.gov)
+Description: 
+    RUDE (Rapid Unsupervised Detection of Events)-based method of spectral track detection.
+    Portions of this methodology originally described in 'Generalized Time Series Analysis
+    for In Situ Spacecraft Observations: Anomaly Detection and Data Prioritization Using
+    Principal Components Analysis and Unsupervised Clustering' by Finley et al., Earth
+    and Space Science (2024).
 '''
 from magprime.algorithms.anomaly.EventDetector import anomaly_detection
 from magprime.utility import load_crm_data
