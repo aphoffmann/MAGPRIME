@@ -29,3 +29,13 @@ def load_swarm_data(start = 160000, stop = 165000):
     r = df[10]
     swarm = np.array([np.fromstring(r[i][1:-1], dtype=float, sep=' ') for i in range(1, r.shape[0])]).T[:,start:stop]
     return(swarm)
+    
+def load_crm_data():
+    "Import 200 Hz magnetometer data, detrended"
+    file_path = pkg_resources.resource_filename('magprime.utility.SPACE_DATA', 'crm_g6_i5_t2_l2_detrended.csv')
+    df = pd.read_csv(file_path, sep=',', skiprows=1, header=None)
+    bx = df[1].to_numpy()
+    by = df[2].to_numpy()
+    bz = df[3].to_numpy()
+    crm = np.stack((bx, by, bz))
+    return(crm)
