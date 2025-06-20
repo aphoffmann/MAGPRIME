@@ -1,15 +1,22 @@
-'''
-Title: 
-    LikelihoodRatio.py
-Authors: 
-    Matthew G. Finley (NASA GSFC & UMD, College Park -- matthew.g.finley@nasa.gov)
-Description: 
-    Implementation of a likelihood ratio-based method of spectral track detection. 
-    Methodology originally described in 'An Image Processing Approach to Frequency Tracking (Application
-    to Sonar Data)' by Abel et al., 1992 IEE International Conference on Acoustics, Speech, and Signal 
-    Processing (1992).
-    
-'''
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║              █ █ █ █ █   MAGPRIME Toolkit   █ █ █ █ █                        ║
+# ║ ──────────────────────────────────────────────────────────────────────────── ║
+# ║  Module       :  LikelihoodRatio.py                                          ║
+# ║  Package      :  magprime                                                    ║
+# ║  Author       :  Dr. Matthew G. Finley  <matthew.g.finley@nasa.gov>          ║
+# ║  Affiliation  :  NASA Goddard Space Flight Center — Greenbelt, MD 20771      ║
+# ║  Created      :  2025-05-21                                                  ║
+# ║  Last Updated :  2025-05-22                                                  ║
+# ║  Python       :  ≥ 3.10                                                      ║
+# ║  License      :  MIT — see LICENSE.txt                                       ║
+# ║                                                                              ║
+# ║  Description  : Implementation of a likelihood ratio-based method of         ║
+# ║  spectral track detection. Methodology originally described in'An Image      ║
+# ║  Processing Approach to Frequency Tracking (Application to Sonar Data)' by   ║
+# ║  Abel et al., 1992 IEE International Conference on Acoustics, Speech,        ║
+# ║  and Signal Processing (1992).                                               ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
 import numpy as np
 from scipy.stats import trim_mean
 from scipy.ndimage import uniform_filter1d, median_filter

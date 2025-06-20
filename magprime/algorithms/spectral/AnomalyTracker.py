@@ -1,15 +1,23 @@
-'''
-Title: 
-    AnomalyTracker.py
-Authors: 
-    Matthew G. Finley (NASA GSFC & UMD, College Park -- matthew.g.finley@nasa.gov)
-Description: 
-    RUDE (Rapid Unsupervised Detection of Events)-based method of spectral track detection.
-    Portions of this methodology originally described in 'Generalized Time Series Analysis
-    for In Situ Spacecraft Observations: Anomaly Detection and Data Prioritization Using
-    Principal Components Analysis and Unsupervised Clustering' by Finley et al., Earth
-    and Space Science (2024).
-'''
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║              █ █ █ █ █   MAGPRIME Toolkit   █ █ █ █ █                        ║
+# ║ ──────────────────────────────────────────────────────────────────────────── ║
+# ║  Module       :  AnomalyTracker.py                                           ║
+# ║  Package      :  magprime                                                    ║
+# ║  Author       :  Dr. Matthew G. Finley  <matthew.g.finley@nasa.gov>          ║
+# ║  Affiliation  :  NASA Goddard Space Flight Center — Greenbelt, MD 20771      ║
+# ║  Created      :  2025-05-21                                                  ║
+# ║  Last Updated :  2025-05-22                                                  ║
+# ║  Python       :  ≥ 3.10                                                      ║
+# ║  License      :  MIT — see LICENSE.txt                                       ║
+# ║                                                                              ║
+# ║  Description  : RUDE (Rapid Unsupervised Detection of Events)-based method   ║
+# ║  of spectral track detection. Portions of this methodology originally        ║
+# ║  described in 'Generalized Time Series Analysis for In Situ Spacecraft       ║
+# ║  Observations: Anomaly Detection and Data Prioritization Using Principal     ║
+# ║  Components Analysis and Unsupervised Clustering' by Finley et al., Earth    ║
+# ║   and Space Science (2024).                                                  ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
 from magprime.algorithms.anomaly.EventDetector import anomaly_detection
 from magprime.utility import load_crm_data
 import numpy as np
