@@ -15,6 +15,7 @@ REQUIREMENTS = [
     'tqdm',
     'magpylib',
     'keyboard',
+    'seaborn',
     'wavelets @ git+https://github.com/aphoffmann/wavelets.git',
     'pymssa @ git+https://github.com/aphoffmann/pymssa.git',
     'nsgt @ git+https://github.com/aphoffmann/nsgt.git',
