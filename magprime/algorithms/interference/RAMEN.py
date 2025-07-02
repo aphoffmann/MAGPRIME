@@ -1,3 +1,17 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║              █ █ █ █ █   MAGPRIME Toolkit   █ █ █ █ █                        ║
+# ║ ──────────────────────────────────────────────────────────────────────────── ║
+# ║  Module       :  RAMEN.py                                                    ║
+# ║  Package      :  magprime                                                    ║
+# ║  Author       :  Dr. Alex P. Hoffmann  <alex.p.hoffmann@nasa.gov>            ║
+# ║  Affiliation  :  NASA Goddard Space Flight Center — Greenbelt, MD 20771      ║
+# ║  Created      :  2025-05-21                                                  ║
+# ║  Last Updated :  2025-05-22                                                  ║
+# ║  Python       :  ≥ 3.10                                                      ║
+# ║  License      :  MIT — see LICENSE.txt                                       ║
+# ║                                                                              ║
+# ║  Description  : Reduction Algorithm for Magnetometer Environmental Noise     ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 Author: Alex Hoffmann
 Last Update: 6/24/2024

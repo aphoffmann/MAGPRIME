@@ -1,3 +1,18 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║              █ █ █ █ █   MAGPRIME Toolkit   █ █ █ █ █                        ║
+# ║ ──────────────────────────────────────────────────────────────────────────── ║
+# ║  Module       :  MSSA.py                                                     ║
+# ║  Package      :  magprime                                                    ║
+# ║  Author       :  Dr. Alex P. Hoffmann  <alex.p.hoffmann@nasa.gov>            ║
+# ║  Affiliation  :  NASA Goddard Space Flight Center — Greenbelt, MD 20771      ║
+# ║  Created      :  2025-05-21                                                  ║
+# ║  Last Updated :  2025-05-22                                                  ║
+# ║  Python       :  ≥ 3.10                                                      ║
+# ║  License      :  MIT — see LICENSE.txt                                       ║
+# ║                                                                              ║
+# ║  Description  : Multivariate Singular Spectrum Analysis for                  ║
+# ║                 interference mitigation                                      ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 Author: Matt Finley, Alex Hoffmann
 Last Update: 9/19/2023
