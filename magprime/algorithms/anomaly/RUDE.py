@@ -1,22 +1,23 @@
-""" 
-Title: sample_detection_utilities.py
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║              █ █ █ █ █   MAGPRIME Toolkit   █ █ █ █ █                        ║
+# ║ ──────────────────────────────────────────────────────────────────────────── ║
+# ║  Module       :  EventDetector.py                                            ║
+# ║  Package      :  magprime                                                    ║
+# ║  Author       : Matthew G. Finley  <matthew.g.finley@nasa.gov>               ║
+# ║                 Dr. Alex P. Hoffmann  <alex.p.hoffmann@nasa.gov>             ║
+# ║  Affiliation  :  NASA Goddard Space Flight Center — Greenbelt, MD 20771      ║
+# ║  Created      :  2025-05-21                                                  ║
+# ║  Last Updated :  2025-05-22                                                  ║
+# ║  Python       :  ≥ 3.10                                                      ║
+# ║  License      :  MIT — see LICENSE.txt                                       ║
+# ║                                                                              ║
+# ║  Description  : Implementation of RUDE described in 'Generalized Time-Series ║
+# ║  Analysis for In Situ Spacecraft Observations: Anomaly Detection and Data    ║
+# ║  Prioritization Using Principal Components Analysis and Unsupervised         ║
+# ║  Clustering' by Finley et al., Earth and Space Science (2024). Implementation║ 
+# ║  of RUDER described in forthcoming manuscript.                               ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
-Date/Version: 17 April 2024 (v0.1)
-
-Author: Matthew G. Finley (NASA GSFC/University of Maryland)
-
-Contact: matthew.g.finley@nasa.gov
-
-Description: Utility file to detrend data and test for anomalous samples. This utility file is used in 'sample_detection.py' and accompanies the manuscript
-    'Generalized Time-Series Analysis for In-Situ Spacecraft Observations: Anomaly Detection and Data Prioritization using Principal Components Analysis and Unsupervised Clustering' 
-    by M.G. Finley, M. Martinez-Ledesma, W.R. Paterson, M.R. Argall, D.M. Miles, J.C. Dorelli, and E. Zesta.
-
-General Parameters
-----------
-uf : window size for uniform filter used to detrend the data
-detrend : boolean for whether to detrend the data
-    
-"""
 
 from sklearn.decomposition import PCA
 import numpy as np

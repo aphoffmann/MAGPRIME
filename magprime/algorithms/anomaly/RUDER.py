@@ -1,15 +1,22 @@
-'''
-Title: 
-    RUDER.py
-Authors: 
-    Matthew G. Finley (NASA GSFC & UMD, College Park -- matthew.g.finley@nasa.gov)
-Description:
-    RUDER: Rapid Unsupervised Detection of Events with Recursive PCA.
-    Implementation of RUDE described in 'Generalized Time-Series Analysis for In Situ Spacecraft
-    Observations: Anomaly Detection and Data Prioritization Using Principal Components Analysis
-    and Unsupervised Clustering' by Finley et al., Earth and Space Science (2024).
-    Implementation of RUDER described in forthcoming manuscript.
-'''
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║              █ █ █ █ █   MAGPRIME Toolkit   █ █ █ █ █                        ║
+# ║ ──────────────────────────────────────────────────────────────────────────── ║
+# ║  Module       :  EventDetector.py                                            ║
+# ║  Package      :  magprime                                                    ║
+# ║  Author       : Matthew G. Finley  <matthew.g.finley@nasa.gov>               ║
+# ║                 Dr. Alex P. Hoffmann  <alex.p.hoffmann@nasa.gov>             ║
+# ║  Affiliation  :  NASA Goddard Space Flight Center — Greenbelt, MD 20771      ║
+# ║  Created      :  2025-05-21                                                  ║
+# ║  Last Updated :  2025-05-22                                                  ║
+# ║  Python       :  ≥ 3.10                                                      ║
+# ║  License      :  MIT — see LICENSE.txt                                       ║
+# ║                                                                              ║
+# ║  Description  : Implementation of RUDE described in 'Generalized Time-Series ║
+# ║  Analysis for In Situ Spacecraft Observations: Anomaly Detection and Data    ║
+# ║  Prioritization Using Principal Components Analysis and Unsupervised         ║
+# ║  Clustering' by Finley et al., Earth and Space Science (2024). Implementation║ 
+# ║  of RUDER described in forthcoming manuscript.                               ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 import numpy as np
 from sklearn import svm
