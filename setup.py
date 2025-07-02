@@ -34,7 +34,7 @@ DEPENDENCY_LINKS = [
 
 setup(
     name='magprime',
-    version='1.8.0.4',
+    version='1.8.0.5',
     description="Magnetic signal PRocessing, Interference Mitigation, and Enhancement (MAGPRIME)",
     author="Alex Paul Hoffmann",
     author_email='aphoff@umich.edu',
