@@ -29,6 +29,11 @@ def load_swarm_data(start = 160000, stop = 165000):
     r = df[10]
     swarm = np.array([np.fromstring(r[i][1:-1], dtype=float, sep=' ') for i in range(1, r.shape[0])]).T[:,start:stop]
     return(swarm)
+
+def load_ruder_path():
+    "Import 50 Hz magnetometer residual data"
+    file_path = pkg_resources.resource_filename('magprime.utility.SPACE_DATA', 'RUDER_example_swarm.txt')
+    return(file_path)
     
 def load_crm_data():
     "Import 200 Hz magnetometer data, detrended"
