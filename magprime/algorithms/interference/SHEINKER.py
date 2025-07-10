@@ -13,16 +13,7 @@
 # ║  Description  : Adaptive interference cancellation for paired                ║
 # ║                 magnetometer sensors                                         ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-"""
-Author: Arie Sheinker, Alex Hoffmann
-Last Update: 9/19/2023
-Description: Todo
 
-General Parameters
-----------
-uf : window size for uniform filter used to detrend the data
-detrend : boolean for whether to detrend the data
-"""
 import numpy as np
 from scipy.ndimage import uniform_filter1d
 

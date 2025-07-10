@@ -13,22 +13,7 @@
 # ║  Description  : Implements Neubauer's multimagnetometer optimization         ║
 # ║                 for spacecraft sensor arrays                                 ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-"""
-Author: Alex Hoffmann
-Last Update: 10/09/2024
-Description: Implementation of "Optimization of Multimagnetometer Systems on a Spacecraft" by F. M. Neubauer
 
-General Parameters
-----------
-uf : window size for uniform filter used to detrend the data
-detrend : boolean for whether to detrend the data
-
-Algorithm Parameters
-----------
-spacecraft_center : (3,) array of the spacecraft center
-mag_positions : (n_sensors, 3) array of the positions of the magnetometers
-
-"""
 import numpy as np
 from scipy.ndimage import uniform_filter1d
 from scipy.optimize import minimize

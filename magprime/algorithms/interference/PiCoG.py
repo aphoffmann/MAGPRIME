@@ -13,16 +13,6 @@
 # ║  Description  : Principal Component Gradiometry for isolating common         ║
 # ║                 disturbances between sensors                                 ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-"""
-Author: XYZ, Alex Hoffmann
-Last Update: 9/19/2023
-Description: Todo
-
-General Parameters
-----------
-uf : window size for uniform filter used to detrend the data
-detrend : boolean for whether to detrend the data
-"""
 
 import numpy as np
 from sklearn.decomposition import PCA

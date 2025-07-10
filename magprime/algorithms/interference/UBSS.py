@@ -11,28 +11,20 @@
 # ║  License      :  MIT — see LICENSE.txt                                       ║
 # ║                                                                              ║
 # ║  Description  : Underdetermined Blind Source Separation using sparse         ║
-# ║                 NSGT representations                                          ║
+# ║                 NSGT representations                                         ║
+# ║                                                                              ║                                   
+# ║  Algorithm Parameters           :  UBSS.py                                   ║
+# ║  ------------------- --------------------------------------------------      ║
+# ║  sigma : magnitude filter threshold                                          ║    
+# ║  lambda_ : magnitude filter threshold factor                                 ║
+# ║  sspTol : SSP filter threshold                                               ║
+# ║  bpo : Number of Bands Per Octave in the NSGT Transform                      ║
+# ║  fs : sampling frequency                                                     ║
+# ║  weight : weight for compressive sensing                                     ║
+# ║  boom : index of boom magnetometer in (n_sensors, axes, n_samples) array     ║
+# ║  cs_iters : Number of Iterations for Compressive Sensing                     ║
+# ║                                                                              ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-"""
-Author: Alex Hoffmann
-Last Update: 9/19/2023
-Description: 
-             
-General Parameters
-----------
-uf : window size for uniform filter used to detrend the data
-detrend : boolean for whether to detrend the data
-
-Algorithm Parameters
-----------
-sigma : magnitude filter threshold
-lambda_ : magnitude filter threshold factor
-sspTol : SSP filter threshold
-bpo : Number of Bands Per Octave in the NSGT Transform
-fs : sampling frequency
-weight : weight for compressive sensing
-boom : index of boom magnetometer in (n_sensors, axes, n_samples) array
-"""
 
 import numpy as np
 import matplotlib.pyplot as plt

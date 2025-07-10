@@ -11,24 +11,8 @@
 # ║  License      :  MIT — see LICENSE.txt                                       ║
 # ║                                                                              ║
 # ║  Description  : Wavelet-Adaptive Interference Cancellation for               ║
-# ║                 Underdetermined Platforms                                     ║
+# ║                 Underdetermined Platforms                                    ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-"""
-Author: Alex Hoffmann
-Last Update: 9/19/2023
-Description: Todo
-
-General Parameters
-----------
-uf : window size for uniform filter used to detrend the data
-detrend : boolean for whether to detrend the data
-
-Algorithm Parameters
-----------
-fs : sampling frequency
-dj : wavelet scale spacing
-scales : scales used in the wavelet transform (set by the algorithm)
-"""
 
 import numpy as np
 from wavelets import WaveletAnalysis

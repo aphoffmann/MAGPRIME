@@ -13,23 +13,6 @@
 # ║  Description  : Hybrid approach applying MSSA at high frequencies and        ║
 # ║                 NESS gradiometry at low frequencies                          ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-"""
-Author: Matt Finley, Alex Hoffmann
-Last Update: 5/17/2023
-Description: Ness M-SSA applies M-SSA to the high frequency components and
-             Ness gradiometry to the low frequency components.
-
-General Parameters
-----------
-uf : window size for uniform filter used to detrend the data
-detrend : boolean for whether to detrend the data
-
-Algorithm Parameters
-----------
-window_size : window size for MSSA
-alpha : correlation threshold for identifying interference
-variance_explained_threshold : variance explained threshold for MSSA
-"""
 
 import numpy as np
 from scipy import stats

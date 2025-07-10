@@ -13,23 +13,6 @@
 # ║  Description  : Multivariate Singular Spectrum Analysis for                  ║
 # ║                 interference mitigation                                      ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-"""
-Author: Matt Finley, Alex Hoffmann
-Last Update: 9/19/2023
-Description: Todo
-
-General Parameters
-----------
-uf : window size for uniform filter used to detrend the data
-detrend : boolean for whether to detrend the data
-
-Algorithm Parameters
-----------
-window_size : window size for MSSA
-alpha : correlation threshold for identifying interference
-variance_explained_threshold : variance explained threshold for MSSA
-"""
-
 import numpy as np
 from scipy import stats
 from scipy.ndimage import uniform_filter1d

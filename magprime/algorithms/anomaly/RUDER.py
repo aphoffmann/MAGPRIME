@@ -4,7 +4,7 @@
 # ║  Module       :  EventDetector.py                                            ║
 # ║  Package      :  magprime                                                    ║
 # ║  Author       : Matthew G. Finley  <matthew.g.finley@nasa.gov>               ║
-# ║                 Dr. Alex P. Hoffmann  <alex.p.hoffmann@nasa.gov>             ║
+# ║                 Alex P. Hoffmann  <alex.p.hoffmann@nasa.gov>                 ║
 # ║  Affiliation  :  NASA Goddard Space Flight Center — Greenbelt, MD 20771      ║
 # ║  Created      :  2025-05-21                                                  ║
 # ║  Last Updated :  2025-05-22                                                  ║

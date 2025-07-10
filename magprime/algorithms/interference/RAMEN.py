@@ -12,18 +12,6 @@
 # ║                                                                              ║
 # ║  Description  : Reduction Algorithm for Magnetometer Environmental Noise     ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-"""
-Author: Alex Hoffmann
-Last Update: 6/24/2024
-Description: Reduction Algorithm for Magnetometer Environmental Noise
-
-Algorithm Parameters
-----------
-aii : Coupling matrix between the sensors and sources for NESS
-fs : sampling frequency
-sspTol : cosine similarity threshold for identifying multi-source points (MSPs) and ambient single-source points (ASSPs)
-
-"""
 
 import numpy as np
 from wavelets import WaveletAnalysis

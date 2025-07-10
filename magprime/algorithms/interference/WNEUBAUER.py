@@ -12,25 +12,6 @@
 # ║                                                                              ║
 # ║  Description  : Neubauer algorithm implemented in the wavelet domain         ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-"""
-Author: Alex Hoffmann
-Last Update: 10/09/2024
-Description: Implemented Neubauers algorithm for cleaning magnetic field data in the wavelet domain
-
-General Parameters
-----------
-uf : window size for uniform filter used to detrend the data
-detrend : boolean for whether to detrend the data
-
-Algorithm Parameters
-----------
-fs : sampling frequency
-dj : wavelet scale spacing
-lowest_freq : lowest frequency in the wavelet transform
-boom : trend to use during retrending process
-flip : boolean for whether to flip the data before applying the algorithm
-
-"""
 
 import numpy as np
 from wavelets import WaveletAnalysis

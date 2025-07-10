@@ -13,22 +13,6 @@
 # ║  Description  : Independent Component Analysis to remove interference        ║
 # ║                 from multi-sensor magnetometer data                          ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-"""
-Author: Shun Imajo, Alex Hoffmann
-Last Update: 9/19/2023
-Description: This file implements a noise removal method using independent component
-             analysis (ICA) for magnetic field data from multiple magnetometers. 
-             The method follows the approach of Imajo et al. (2021). The method 
-             separates the noise components from the signal components based on 
-             their statistical independence and non-Gaussianity. The natural magnetic 
-             field components are then identified by their similarity in the mixing
-             matrix (ica.mixing_).
-             
-General Parameters
-----------
-uf : window size for uniform filter used to detrend the data
-detrend : boolean for whether to detrend the data
-"""
 
 from sklearn.decomposition import FastICA
 import numpy as np

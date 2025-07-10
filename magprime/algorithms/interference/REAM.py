@@ -13,22 +13,6 @@
 # ║  Description  : Frequency-based gradiometry algorithm using spectral peaks   ║
 # ║                 to identify and remove interference                           ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-"""
-Author: Alex Hoffmann
-Last Update: 9/19/2023
-Description: 
-             
-General Parameters
-----------
-uf : window size for uniform filter used to detrend the data
-detrend : boolean for whether to detrend the data
-
-Algorithm Parameters
-----------
-delta_B : threshold for the change in the differenced field envelope (nT)
-n : number of time steps for the change in the envelope
-p : percentile threshold for identifying spectral peaks (0-100)
-"""
 
 import pandas as pd
 import numpy as np

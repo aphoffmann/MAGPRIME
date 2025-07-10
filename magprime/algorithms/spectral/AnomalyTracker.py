@@ -18,7 +18,7 @@
 # ║   and Space Science (2024).                                                  ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
-from magprime.algorithms.anomaly.EventDetector import anomaly_detection
+from magprime.algorithms.anomaly.RUDE import anomaly_detection
 from magprime.utility import load_crm_data
 import numpy as np
 
