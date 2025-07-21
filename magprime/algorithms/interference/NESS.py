@@ -13,21 +13,6 @@
 # ║  Description  : NESS gradiometry to subtract common-mode noise               ║
 # ║                 across a multi-sensor array                                  ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-"""
-Author: Alex Hoffmann
-Last Update: 9/19/2023
-Description: Todo
-
-General Parameters
-----------
-uf : window size for uniform filter used to detrend the data
-detrend : boolean for whether to detrend the data
-
-Algorithm Parameters
-----------
-aii : Coupling matrix between the sensors and sources for NESS
-
-"""
 
 import numpy as np
 from scipy.ndimage import uniform_filter1d

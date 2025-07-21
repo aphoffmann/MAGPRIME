@@ -15,6 +15,7 @@ import tqdm
 import os
 from scipy.signal import butter, lfilter
 from magprime import utility
+from invertiblewavelets import DyadicFilterBank, Cauchy
 
 "Noise Reduction Algorithms"
 from magprime.algorithms import ICA, MSSA, NESS, PiCoG, SHEINKER, REAM, UBSS, WAICUP
@@ -69,18 +70,17 @@ def createMixingMatrix(seed, axis = 0):
     np.random.seed(seed)
 
     "Create Sensors"
-    s1 = magpy.Sensor(position=(50,50,300), style_size=1.8)
-    s2 = magpy.Sensor(position=(-50,0,200), style_size=1.8)
-    s3 = magpy.Sensor(position=(-50,-50,0), style_size=1.8)
+    s1 = magpy.Sensor(position=(.050,.050,.300), style_size=1.8)
+    s2 = magpy.Sensor(position=(-.050,0,.200), style_size=1.8)
+    s3 = magpy.Sensor(position=(-.050,-.050,0), style_size=1.8)
     s = [s1,s2,s3]
 
     "Create Sources"
-    d1 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(),  position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))
-    d2 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))    
-    d3 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290)))
-    d4 = magpy.current.Loop(current=10, diameter=10, orientation=st.Rotation.random(), position=(random.randint(-40, 40), random.randint(-40, 40), random.randint(10, 290))) 
+    d1 = magpy.current.Loop(current=10, diameter=.010, orientation=st.Rotation.random(),  position=(random.uniform(-.040, .040), random.uniform(-.040, .040), random.uniform(.010, .0290)))
+    d2 = magpy.current.Loop(current=10, diameter=.010, orientation=st.Rotation.random(), position=(random.uniform(-.040, .040), random.uniform(-.040, .040), random.uniform(.010, .0290)))    
+    d3 = magpy.current.Loop(current=10, diameter=.010, orientation=st.Rotation.random(), position=(random.uniform(-.040, .040), random.uniform(-.040, .040), random.uniform(.010, .0290)))
+    d4 = magpy.current.Loop(current=10, diameter=.010, orientation=st.Rotation.random(), position=(random.uniform(-.040, .040), random.uniform(-.040, .040), random.uniform(.010, .0290))) 
     src = [d1,d2,d3,d4]
-    if False: plotNoiseFields(s,src)
 
     "Calculate Couplings"
     global alpha_couplings;
@@ -90,46 +90,10 @@ def createMixingMatrix(seed, axis = 0):
     mixingMatrix[0] = np.ones(len(s))
 
     for i in range(len(src)):
-        mixing_vector = (src[i].getB(s)*1e6).T[axis]
+        mixing_vector = (src[i].getB(s)*1e9).T[axis]
         mixingMatrix[i+1] = mixing_vector
 
     return(mixingMatrix.T)
-
-def plotNoiseFields(sensors, noises):
-    fig, ax = plt.subplots(1, 1, figsize=(13,5))
-
-    # create grid
-    ts1 = np.linspace(-200, 200, 450); ts2 = np.linspace(-100, 300, 600);
-    grid = np.array([[(x,250,z) for x in ts1] for z in ts2])
-    B = np.zeros(grid.shape)
-    for n in noises:
-        B += magpy.getB(n, grid)*1e6
-       
-        
-    Bamp = np.linalg.norm(B, axis=2)
-    #Bamp /= np.amax(Bamp)
-    
-    sp = ax.streamplot(
-        grid[:,:,0], grid[:,:,2], B[:,:,0], B[:,:,2],
-        density=3,
-        color=np.log(Bamp),
-        linewidth=1,
-        cmap='coolwarm',
-    )
-    
-    "Plot NoiseMakers"
-    for s in noises:
-        plt.plot(s.position[0], s.position[-1], 'bo')
-    #plt.legend()
-    
-    "Plot Sensors"
-    for s in sensors:
-        plt.plot(s.position[0], s.position[-1], 'ro')
-    #plt.legend()
-
-    plt.xlabel("[mm]");    plt.ylabel("[mm]")
-
-    plt.colorbar(sp.lines, ax=ax, label='[Log nT]')
 
 def randomizeSignals(N, seed = 0):
     # Defining a function that takes an integer N and an optional integer seed as parameters
@@ -179,7 +143,9 @@ def run():
         last_seed = -1 # Set the last seed to -1 if the CSV file does not exist
 
     "BEGIN MONTE CARLO SIMULATION"
-    for i in tqdm.tqdm(range(last_seed + 1, 10)):
+    axes = ['x', 'y', 'z']
+    rows = []
+    for i in tqdm.tqdm(range(last_seed + 1, 100)):
         random.seed(i)
         np.random.seed(i)
 
@@ -234,9 +200,16 @@ def run():
             snr_ness[j] = snr(swarm[j], B_ness[j])
 
         "WAICUP"
-        WAICUP.fs = sampleRate
-        WAICUP.uf = 500
-        WAICUP.detrend = True
+        fb = DyadicFilterBank(
+            wavelet=Cauchy(100), 
+            fs=50, N=10000, 
+            real=True, 
+            dj = 1/12, 
+            s_max = 20,
+            compensation=False)
+
+        WAICUP.filterbank = fb
+        WAICUP.detrend = False
         B_waicup = WAICUP.clean(np.copy(B))
 
         rmse_waicup = np.sqrt(((swarm.T-B_waicup.T)**2).mean(axis=0))
@@ -247,6 +220,7 @@ def run():
 
 
         "PiCoG"
+        PiCoG.order = 3
         B_picog = PiCoG.clean(np.copy(B))
         
         rmse_picog = np.sqrt(((swarm.T-B_picog.T)**2).mean(axis=0))
@@ -278,10 +252,11 @@ def run():
             snr_ream[j] = snr(swarm[j], B_ream[j])  
 
         "UBSS"
-        UBSS.sigma = 1
+        UBSS.sigma = 15
         UBSS.lambda_ = 2
         UBSS.fs = sampleRate
         UBSS.bpo = 2
+        UBSS.cs_iters = 2
         B_ubss = UBSS.clean(np.copy(B))
 
         rmse_ubss = np.sqrt(((swarm.T-B_ubss.T)**2).mean(axis=0))
@@ -291,7 +266,7 @@ def run():
             snr_ubss[j] = snr(swarm[j], B_ubss[j])
 
         "MSSA"
-        MSSA.window_size = 500
+        MSSA.window_size = 100
         MSSA.uf = 500
         MSSA.detrend = True
         B_mssa = MSSA.clean(np.copy(B))
@@ -318,38 +293,46 @@ def run():
             snr_b3[j] = snr(swarm[j], B[2][j])
 
         "Save all results to a csv file"
-        results = pd.concat([results, pd.DataFrame({    "seed": i,
-                                                        "rmse_ica": rmse_ica,
-                                                        "rmse_mssa": rmse_mssa,
-                                                        "rmse_ness": rmse_ness,
-                                                        "rmse_picog": rmse_picog,
-                                                        "rmse_sheinker": rmse_sheinker,
-                                                        "rmse_ream": rmse_ream,
-                                                        "rmse_ubss": rmse_ubss,
-                                                        "rmse_waicup": rmse_waicup,
-                                                        "rmse_b1": rmse_b1,
-                                                        "rmse_b2": rmse_b2,
-                                                        "corr_ica": corr_ica,
-                                                        "corr_mssa": corr_mssa,
-                                                        "corr_ness": corr_ness,
-                                                        "corr_picog": corr_picog,
-                                                        "corr_sheinker": corr_sheinker,
-                                                        "corr_ream": corr_ream,
-                                                        "corr_ubss": corr_ubss,
-                                                        "corr_waicup": corr_waicup,
-                                                        "corr_b1": corr_b1,
-                                                        "corr_b2": corr_b2,
-                                                        "snr_ica": snr_ica,
-                                                        "snr_mssa": snr_mssa,
-                                                        "snr_ness": snr_ness,
-                                                        "snr_picog": snr_picog,
-                                                        "snr_sheinker": snr_sheinker,
-                                                        "snr_ream": snr_ream,
-                                                        "snr_ubss": snr_ubss,
-                                                        "snr_waicup": snr_waicup,
-                                                        "snr_b1": snr_b1,
-                                                        "snr_b2": snr_b2})], ignore_index=True)
-        results.to_csv("magprime_results_C.csv", index=False) 
+        for k, ax in enumerate(axes):
+            rows.append({
+                'seed': i,
+                'axis': ax,
+                'rmse_ica': rmse_ica[k],
+                'rmse_mssa': rmse_mssa[k],
+                'rmse_ness': rmse_ness[k],
+                'rmse_picog': rmse_picog[k],
+                'rmse_sheinker': rmse_sheinker[k],
+                'rmse_ream': rmse_ream[k],
+                'rmse_ubss': rmse_ubss[k],
+                'rmse_waicup': rmse_waicup[k],
+                'rmse_b1': rmse_b1[k],
+                'rmse_b2': rmse_b2[k],
+                "rmse_b3": rmse_b3[k],
+                'corr_ica': corr_ica[k],
+                'corr_mssa': corr_mssa[k],
+                'corr_ness': corr_ness[k],
+                'corr_picog': corr_picog[k],
+                'corr_sheinker': corr_sheinker[k],
+                'corr_ream': corr_ream[k],
+                'corr_ubss': corr_ubss[k],
+                'corr_waicup': corr_waicup[k],
+                'corr_b1': corr_b1[k],
+                'corr_b2': corr_b2[k],
+                'corr_b3': corr_b3[k],
+                'snr_ica': snr_ica[k],
+                'snr_mssa': snr_mssa[k],
+                'snr_ness': snr_ness[k],
+                'snr_picog': snr_picog[k],
+                'snr_sheinker': snr_sheinker[k],
+                'snr_ream': snr_ream[k],
+                'snr_ubss': snr_ubss[k],
+                'snr_waicup': snr_waicup[k],
+                'snr_b1': snr_b1[k],
+                'snr_b2': snr_b2[k],
+                'snr_b3': snr_b3[k]})
+    
+            results = pd.DataFrame(rows)
+            results.to_csv("magprime_results_B.csv", index=False) 
 
 
 if __name__ == "__main__":
