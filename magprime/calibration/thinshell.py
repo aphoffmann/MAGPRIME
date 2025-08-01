@@ -50,11 +50,12 @@ def thinshell(Bx, By, Bz, ref_B):
     def resid(params, Bx, By, Bz, ref_B):
         s1,s2,s3,a12,a13,a23,O0,O1,O2 = params
         A = np.array([[s1, a12, a13],
-                      [0. , s2 , a23],
-                      [0. , 0. , s3 ]])
+                        [0. , s2 , a23],
+                        [0. , 0. , s3 ]])
         X = np.vstack((Bx - O0, By - O1, Bz - O2))
-        magsq = np.sum((A @ X)**2, axis=0)
-        return np.abs(magsq - ref_B**2)
+        B_cal = A @ X
+        B_norm = np.linalg.norm(B_cal, axis=0)
+        return B_norm - ref_B
 
     # pack initial guess
     x0 = np.array([
