@@ -54,7 +54,7 @@ def thinshell(Bx, By, Bz, ref_B):
                       [0. , 0. , s3 ]])
         X = np.vstack((Bx - O0, By - O1, Bz - O2))
         magsq = np.sum((A @ X)**2, axis=0)
-        return magsq - ref_B**2
+        return np.abs(magsq - ref_B**2)
 
     # pack initial guess
     x0 = np.array([
