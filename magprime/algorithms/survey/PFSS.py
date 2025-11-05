@@ -25,9 +25,65 @@
 import numpy as np
 from scipy.linalg import svd, qr
 from scipy.signal import fftconvolve
-import warnings
-from numba import jit, prange
+from numba import jit
+from functools import cache
+from scipy.cluster.hierarchy import linkage, fcluster
+from scipy.spatial.distance   import squareform
 
+@cache
+def _build_fft_handles(shape: tuple[int, int], type_name: str):
+    """
+    Build and cache FFT handles for a given array shape and type.
+    Returns (matvec, rmatvec, dims, workspace).
+    """
+    P, Q = shape
+    K = (P + 1) // 2
+    L = P - K + 1
+    Kh = (Q + 1) // 2
+    Lh = Q - Kh + 1
+    s0, s1 = P + L - 1, Q + Lh - 1
+
+    # Workspace buffers for FFT padding and convolution
+    workspace = {
+        'pad': np.zeros((s0, s1), dtype=np.float64),
+        'Wpad': None
+    }
+
+    def matvec(Omega: np.ndarray) -> np.ndarray:
+        ncols = Omega.shape[1]
+        # Allocate or resize Wpad
+        if workspace['Wpad'] is None or workspace['Wpad'].shape[2] < ncols:
+            workspace['Wpad'] = np.zeros((s0, s1, ncols), dtype=Omega.dtype)
+        Wpad = workspace['Wpad'][:, :, :ncols]
+        Wpad.fill(0)
+        # Fill reversed Hankel blocks
+        W3 = Omega.reshape(L, Lh, ncols, order='F')
+        Wpad[:L, :Lh, :] = W3[::-1, ::-1, :]
+        # FFT of original data
+        workspace['pad'][:P, :Q] = X_global  # X_global is set by caller context
+        X_fft = np.fft.fft2(workspace['pad'])
+        # FFT of blocks and convolution
+        W_fft = np.fft.fft2(Wpad, axes=(0, 1))
+        conv = np.fft.ifft2(X_fft[:, :, None] * W_fft, axes=(0, 1)).real
+        block = conv[L - 1:P, Lh - 1:Q, :]
+        return block.reshape(K * Kh, ncols, order='F')
+
+    def rmatvec(W: np.ndarray) -> np.ndarray:
+        ncols = W.shape[1]
+        if workspace['Wpad'] is None or workspace['Wpad'].shape[2] < ncols:
+            workspace['Wpad'] = np.zeros((s0, s1, ncols), dtype=W.dtype)
+        Wpad = workspace['Wpad'][:, :, :ncols]
+        Wpad.fill(0)
+        W3 = W.reshape(K, Kh, ncols, order='F')
+        Wpad[:K, :Kh, :] = W3[::-1, ::-1, :]
+        workspace['pad'][:P, :Q] = X_global
+        X_fft = np.fft.fft2(workspace['pad'])
+        W_fft = np.fft.fft2(Wpad, axes=(0, 1))
+        conv = np.fft.ifft2(X_fft[:, :, None] * W_fft, axes=(0, 1)).real
+        block = conv[K - 1:P, Kh - 1:Q, :]
+        return block.reshape(L * Lh, ncols, order='F')
+
+    return matvec, rmatvec, (K, L, Kh, Lh, s0, s1), workspace
 
 @jit(nopython=True, cache=True)
 def _hard_threshold_inplace(M, zeta):
@@ -37,12 +93,11 @@ def _hard_threshold_inplace(M, zeta):
         if abs(flat[i]) < zeta:
             flat[i] = 0.0
 
-
 # -----------------------------------------------------------------------------
 # OptimizedPFSS class definition
 # -----------------------------------------------------------------------------
-class OptimizedPFSS:
-    def __init__(self, use_gpu=False):
+class PFSS:
+    def __init__(self):
         """
         Initialize optimized PFSS solver.
         Parameters
@@ -50,82 +105,19 @@ class OptimizedPFSS:
         use_gpu : bool
             Whether to use GPU acceleration (requires CuPy)
         """
-        self.use_gpu = use_gpu
-        if use_gpu:
-            try:
-                import cupy as cp
-                self.cp = cp
-                self.gpu_available = True
-            except ImportError:
-                warnings.warn("CuPy not available, falling back to CPU")
-                self.gpu_available = False
-        else:
-            self.gpu_available = False
-
         # Cache for FFT plans and workspace
         self._fft_cache = {}
         self._workspace_cache = {}
+        self.s = None
 
-    def _get_array_module(self, X):
-        """Get appropriate array module (numpy or cupy)."""
-        if self.gpu_available and hasattr(X, '__cuda_array_interface__'):
-            return self.cp
-        return np
-
-    def _cached_fft_handles(self, X):
-        """Build FFT handles with caching for repeated use."""
-        P, Q = X.shape
-        cache_key = (P, Q, type(X).__name__)
-        if cache_key in self._fft_cache:
-            return self._fft_cache[cache_key]
-
-        xp = self._get_array_module(X)
-        K = (P + 1) // 2
-        L = P - K + 1
-        Kh = (Q + 1) // 2
-        Lh = Q - Kh + 1
-        s0, s1 = P + L - 1, Q + Lh - 1
-
-        workspace = {
-            'Xpad': xp.zeros((s0, s1), dtype=X.dtype),
-            'Wpad_buffer': None,
-            'conv_buffer': None
-        }
-
-        def matvec(Omega):
-            ncols = Omega.shape[1]
-            if workspace['Wpad_buffer'] is None or workspace['Wpad_buffer'].shape[2] < ncols:
-                workspace['Wpad_buffer'] = xp.zeros((s0, s1, ncols), dtype=X.dtype)
-                workspace['conv_buffer'] = xp.zeros((s0, s1, ncols), dtype=xp.complex128)
-            Wpad = workspace['Wpad_buffer'][:, :, :ncols]
-            Wpad.fill(0)
-            W3 = Omega.reshape(L, Lh, ncols, order='F')
-            Wpad[:L, :Lh, :] = W3[::-1, ::-1, :]
-            workspace['Xpad'][:P, :Q] = X
-            X_fft = xp.fft.fft2(workspace['Xpad'])
-            W_fft = xp.fft.fft2(Wpad, axes=(0, 1))
-            conv_out = xp.fft.ifft2(X_fft[:, :, None] * W_fft, axes=(0, 1)).real
-            valid_block = conv_out[L-1:P, Lh-1:Q, :]
-            return valid_block.reshape(K * Kh, ncols, order='F')
-
-        def rmatvec(W):
-            ncols = W.shape[1]
-            if workspace['Wpad_buffer'] is None or workspace['Wpad_buffer'].shape[2] < ncols:
-                workspace['Wpad_buffer'] = xp.zeros((s0, s1, ncols), dtype=X.dtype)
-            Wpad = workspace['Wpad_buffer'][:, :, :ncols]
-            Wpad.fill(0)
-            W3 = W.reshape(K, Kh, ncols, order='F')
-            Wpad[:K, :Kh, :] = W3[::-1, ::-1, :]
-            workspace['Xpad'][:P, :Q] = X
-            X_fft = xp.fft.fft2(workspace['Xpad'])
-            W_fft = xp.fft.fft2(Wpad, axes=(0, 1))
-            conv_out = xp.fft.ifft2(X_fft[:, :, None] * W_fft, axes=(0, 1)).real
-            valid_block = conv_out[K-1:P, Kh-1:Q, :]
-            return valid_block.reshape(L * Lh, ncols, order='F')
-
-        handles = (matvec, rmatvec, (K, L, Kh, Lh, s0, s1), workspace)
-        self._fft_cache[cache_key] = handles
-        return handles
+    def _cached_fft_handles(self, X: np.ndarray):
+        """
+        Retrieve FFT handles for X via functools.cache.
+        """
+        # Set global for closures
+        global X_global
+        X_global = X
+        return _build_fft_handles(X.shape, type(X).__name__)
 
     def adaptive_rank_selection(self, X, max_rank=None):
         """
@@ -144,7 +136,6 @@ class OptimizedPFSS:
         """Optimized randomized SVD with acceleration strategies."""
         matvec, rmatvec, dims, _ = self._cached_fft_handles(X)
         return self._randomized_svd_fft(matvec, rmatvec, dims, rank, p, q, power_scheme)
-
 
     def _randomized_svd_fft(self, matvec, rmatvec, dims, rank=10, p=None, q=None, power_scheme='auto'):
         """FFT-based randomized SVD for block-Hankel matrices."""
@@ -166,33 +157,6 @@ class OptimizedPFSS:
         B = rmatvec(Q_mat).T
         if B.shape[0] > ell:
             B = B[:ell, :]
-        Ub, s_vals, Vt = svd(B, full_matrices=False)
-        U_final = Q_mat @ Ub[:, :rank]
-        return U_final, s_vals[:rank], Vt[:rank, :]
-
-    def _randomized_svd_direct(self, X, rank=10, p=None, q=None, power_scheme='auto'):
-        """Direct randomized SVD for dense matrices."""
-        m, n = X.shape
-        if p is None:
-            p = min(10, max(5, rank // 2))
-        if q is None:
-            q = 2 if power_scheme != 'fixed' else 1
-        ell = min(rank + p, min(m, n))
-        Omega = self._generate_structured_random_matrix(n, ell)
-        Y = X @ Omega
-        if power_scheme == 'adaptive':
-            prev_norm = np.linalg.norm(Y, 'fro')
-            for i in range(q):
-                Y = X @ (X.T @ Y)
-                curr_norm = np.linalg.norm(Y, 'fro')
-                if i > 0 and curr_norm / prev_norm < 1.05:
-                    break
-                prev_norm = curr_norm
-        else:
-            for _ in range(q):
-                Y = X @ (X.T @ Y)
-        Q_mat = self._stable_qr(Y)
-        B = Q_mat.T @ X
         Ub, s_vals, Vt = svd(B, full_matrices=False)
         U_final = Q_mat @ Ub[:, :rank]
         return U_final, s_vals[:rank], Vt[:rank, :]
@@ -242,7 +206,6 @@ class OptimizedPFSS:
 
     def fast_inverse_block_hankel_vectorized(self, U, s, Vt, P, Q):
         """Optimized inverse block Hankel with vectorized operations."""
-        xp = self._get_array_module(U)
         block_rows = (P + 1) // 2
         block_cols = P - block_rows + 1
         grid_cols = (Q + 1) // 2
@@ -258,83 +221,98 @@ class OptimizedPFSS:
             counts = self._counts_cache[1]
         U_reshaped = U.reshape(block_rows, grid_cols, -1, order='F')
         V_reshaped = Vt.reshape(-1, block_cols, grid_rows, order='F')
-        X_acc = xp.zeros((P, Q))
+        X_acc = np.zeros((P, Q))
         for k in range(len(s)):
             conv_result = fftconvolve(U_reshaped[:,:,k], V_reshaped[k], mode="full")
             X_acc += s[k] * conv_result
         return X_acc / counts
 
-    def pfss_optimized(self, X, r_max=None, beta=0.8, max_iter=10, eps=1e-4,
-                      adaptive_threshold=True, early_stopping=True, verbose=False):
-        """Optimized PFSS with multiple acceleration techniques."""
+    def pfss_optimized(
+        self,
+        X: np.ndarray,
+        r_max: int | None = None,
+        beta: float = 0.8,
+        max_iter: int = 10,
+        eps: float = 1e-4,
+        verbose: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Low-rank + sparse decomposition via alternating Hankel low-rank (SSA)
+        and hard thresholding of the residual with a median-based tau.
+        """
         P, Q = X.shape
-        xp = self._get_array_module(X)
+        normX = np.linalg.norm(X)
+
+        # 1) choose rank
         if r_max is None:
             r_max = self.adaptive_rank_selection(X)
             if verbose:
-                print(f"Auto-selected rank: {r_max}")
-        matvec, rmatvec, dims, workspace = self._cached_fft_handles(X)
-        U_init, s_init, _ = self._randomized_svd(matvec, rmatvec, dims, rank=min(5, r_max))
-        zeta0 = beta * s_init[0] if len(s_init)>0 else beta * np.std(X)
-        X_low = xp.zeros_like(X)
-        X_sparse = X.copy()
-        _hard_threshold_inplace(X_sparse, zeta0)
-        prev_residual_norm = np.inf
-        stagnation_count = 0
-        for k in range(1, r_max+1):
+                print(f"Auto-selected rank = {r_max}")
+
+        # 2) initial low-rank from the full X
+        matvec, rmatvec, dims, _ = self._cached_fft_handles(X)
+        U, s_vals, Vt = self._randomized_svd(matvec, rmatvec, dims, rank=r_max)
+        X_low = self.fast_inverse_block_hankel_vectorized(U, s_vals, Vt, P, Q)
+
+        # 3) initial sparse = hard-threshold(residual)
+        residual = X - X_low
+        tau = beta * np.median(np.abs(residual))
+        X_sparse = residual.copy()
+        _hard_threshold_inplace(X_sparse, tau)
+
+        prev_low    = X_low
+        prev_sparse = X_sparse
+
+        # 4) alternate
+        for it in range(1, max_iter+1):
             if verbose:
-                print(f"\n-- Target rank k = {k}")
-            converged = False
-            for t in range(max_iter):
-                residual = X - X_low
-                matvec_res, rmatvec_res, _, _ = self._cached_fft_handles(residual)
-                U, s_vals, Vt = self._randomized_svd(matvec_res, rmatvec_res, dims, rank=min(k+2, r_max+1))
-                if len(s_vals) <= k:
-                    break
-                if adaptive_threshold and k < len(s_vals):
-                    gap_ratio = (s_vals[k-1] - s_vals[k]) / s_vals[k-1]
-                    zeta = beta * s_vals[k] * (1 + gap_ratio)
-                else:
-                    zeta = beta * s_vals[k] if k<len(s_vals) else beta*s_vals[-1]
-                X_low_new = self.fast_inverse_block_hankel_vectorized(U[:,:k], s_vals[:k], Vt[:k,:], P, Q)
-                X_sparse_new = X - X_low_new
-                _hard_threshold_inplace(X_sparse_new, zeta)
-                delta = np.linalg.norm(X_low_new - X_low)
-                residual_norm = np.linalg.norm(X - X_low_new - X_sparse_new)
+                print(f"-- PFSS iter {it}/{max_iter}")
+
+            # low-rank step on X − sparse
+            Y = X - X_sparse
+            matvec, rmatvec, dims, _ = self._cached_fft_handles(Y)
+            U, s_vals, Vt = self._randomized_svd(matvec, rmatvec, dims, rank=r_max)
+            self.s = s_vals
+            X_low = self.fast_inverse_block_hankel_vectorized(U, s_vals, Vt, P, Q)
+
+            # sparse step on X − low
+            residual = X - X_low
+            tau = beta * np.median(np.abs(residual))
+            X_sparse = residual.copy()
+            _hard_threshold_inplace(X_sparse, tau)
+
+            # check convergence in relative Frobenius norm
+            low_diff    = np.linalg.norm(X_low - prev_low)    / normX
+            sparse_diff = np.linalg.norm(X_sparse - prev_sparse) / normX
+
+            if verbose:
+                print(f"  low_diff = {low_diff:.2e}, sparse_diff = {sparse_diff:.2e}")
+
+            if low_diff < eps and sparse_diff < eps:
                 if verbose:
-                    print(f"  Iter {t}: ΔX_low = {delta:.2e}, residual = {residual_norm:.2e}")
-                if early_stopping and delta<eps:
-                    converged = True
-                    break
-                if early_stopping and abs(residual_norm-prev_residual_norm)/prev_residual_norm<0.01:
-                    stagnation_count+=1
-                    if stagnation_count>=3:
-                        if verbose:
-                            print("  Early stopping due to stagnation")
-                        break
-                else:
-                    stagnation_count=0
-                prev_residual_norm = residual_norm
-                X_low, X_sparse = X_low_new, X_sparse_new
-                if converged:
-                    break
-            if early_stopping and k>2:
-                current_error = np.linalg.norm(X - X_low - X_sparse)
-                if current_error/np.linalg.norm(X)<0.01:
-                    if verbose:
-                        print(f"Early termination at rank {k}, relative error: {current_error/np.linalg.norm(X):.2e}")
-                    break
-        X_sparse = X - X_low
+                    print("Converged, stopping early")
+                break
+
+            prev_low    = X_low
+            prev_sparse = X_sparse
+
         return X_low, X_sparse
 
     def ssa_optimized(self, X, r_max=None, sort_components=True, batch_reconstruct=True):
         """Optimized Singular Spectrum Analysis with vectorized reconstruction."""
         P, Q = X.shape
-        xp = self._get_array_module(X)
+        matvec, rmatvec, dims, _ = self._cached_fft_handles(X)
+        K, L, Kh, Lh, *_ = dims
+        m, n = K * Kh, L * Lh
+
         if r_max is None:
             r_max = self.adaptive_rank_selection(X, max_rank=min(P,Q)//3)
-        matvec, rmatvec, dims, _ = self._cached_fft_handles(X)
+        elif r_max < 0:
+            # full‐rank reconstruction
+            r_max = min(m, n)
+
         U, s, Vt = self._randomized_svd(matvec, rmatvec, dims, rank=r_max)
+        self.s = s
         if sort_components:
             idx = np.argsort(-s)
             s, U, Vt = s[idx], U[:,idx], Vt[idx,:]
@@ -346,7 +324,6 @@ class OptimizedPFSS:
 
     def _batch_reconstruct_components(self, U, s, Vt, P, Q):
         """Batch reconstruction of all SSA components."""
-        xp = self._get_array_module(U)
         r = len(s)
         K, Kh = (P + 1)//2, (Q + 1)//2
         L, Lh = P - K + 1, Q - Kh + 1
@@ -358,7 +335,7 @@ class OptimizedPFSS:
             counts = self._workspace_cache[cache_key]
         U_batch = U.reshape(K,Kh,r,order='F')
         V_batch = Vt.reshape(r,L,Lh,order='F')
-        comps = xp.zeros((r,P,Q),dtype=U.dtype)
+        comps = np.zeros((r,P,Q),dtype=U.dtype)
         chunk_size = min(8, r)
         for i in range(0,r,chunk_size):
             end_idx = min(i+chunk_size, r)
@@ -369,7 +346,6 @@ class OptimizedPFSS:
 
     def _individual_reconstruct_components(self, U, s, Vt, P, Q):
         """Individual component reconstruction (fallback)."""
-        xp = self._get_array_module(U)
         r = len(s)
         K, Kh = (P + 1)//2, (Q + 1)//2
         L, Lh = P - K + 1, Q - Kh + 1
@@ -379,7 +355,7 @@ class OptimizedPFSS:
             self._workspace_cache[cache_key] = counts
         else:
             counts = self._workspace_cache[cache_key]
-        comps = xp.zeros((r,P,Q),dtype=U.dtype)
+        comps = np.zeros((r,P,Q),dtype=U.dtype)
         for k in range(r):
             Uk = U[:,k].reshape(K,Kh,order='F')
             Vk = Vt[k].reshape(L,Lh,order='F')
@@ -394,21 +370,81 @@ class OptimizedPFSS:
         else:
             return self._individual_reconstruct_components(U, s, Vt, P, Q)
 
+    def group_components(
+        self,
+        comps: np.ndarray,
+        n_groups:    int    = None,
+        threshold:  float   = None,
+        linkage_method: str = 'average'
+        ) -> tuple[np.ndarray, list[list[int]]]:
+            """
+            Automatic grouping of 2D-SSA components via weighted-correlation + hierarchical clustering.
+
+            Parameters
+            ----------
+            comps : array_like, shape (r, P, Q)
+                The r SSA elementary reconstructions.
+            n_groups : int, optional
+                If set, cut the dendrogram into this many clusters.
+            threshold : float, optional
+                If set, cut the dendrogram at this dissimilarity threshold.
+            linkage_method : str
+                One of {'single','complete','average','ward',…}.
+
+            Returns
+            -------
+            labels : ndarray, shape (r,)
+                Cluster label (1…k) for each component.
+            groups : list of lists
+                groups[i] is the list of component-indices in cluster i+1.
+            """
+            r, P, Q = comps.shape
+
+            # 1) flatten each component to a vector
+            flat = comps.reshape(r, -1)
+
+            # 2) weighted-correlation matrix w_ij
+            norms = np.linalg.norm(flat, axis=1, keepdims=True)
+            corr  = (flat @ flat.T) / (norms @ norms.T)
+            wcorr = corr  # in [-1..1]
+
+            # 3) dissimilarity = 1 - |w|
+            diss = 1 - np.abs(wcorr)
+
+            # 4) hierarchical clustering
+            condensed = squareform(diss, checks=False)
+            Z = linkage(condensed, method=linkage_method)
+
+            # 5) decide where to cut
+            if n_groups is not None:
+                labels = fcluster(Z, t=n_groups,    criterion='maxclust')
+            elif threshold is not None:
+                labels = fcluster(Z, t=threshold,   criterion='distance')
+            else:
+                raise ValueError("must specify either n_groups or threshold")
+
+            # 6) collect the groups
+            groups = []
+            for k in range(1, labels.max()+1):
+                groups.append(list(np.nonzero(labels==k)[0]))
+
+            return labels, groups
+    
 # -----------------------------------------------------------------------------
 # Standalone functions for backward compatibility
 # -----------------------------------------------------------------------------
-def fast_rsvd(X, rank=10, p=1, q=1, power_scheme='auto', use_gpu=False):
-    solver = OptimizedPFSS(use_gpu=use_gpu)
+def fast_rsvd(X, rank=10, p=1, q=1, power_scheme='auto'):
+    solver = PFSS()
     return solver.fast_rsvd_optimized(X, rank, p, q, power_scheme)
 
-def pfss(X, r_max=None, beta=0.8, max_iter=10, eps=1e-4, verbose=False, use_gpu=False):
-    solver = OptimizedPFSS(use_gpu=use_gpu)
+def pfss(X, r_max=None, beta=0.8, max_iter=10, eps=1e-4, verbose=False, ):
+    solver = PFSS()
     return solver.pfss_optimized(X, r_max, beta, max_iter, eps, verbose=verbose)
 
-def ssa(X, r_max=None, sort_components=True, use_gpu=False):
-    solver = OptimizedPFSS(use_gpu=use_gpu)
+def ssa(X, r_max=None, sort_components=True):
+    solver = PFSS()
     return solver.ssa_optimized(X, r_max=r_max, sort_components=sort_components)
 
-def ssa_from_svd(U, s, Vt, shape, use_gpu=False):
-    solver = OptimizedPFSS(use_gpu=use_gpu)
+def ssa_from_svd(U, s, Vt, shape):
+    solver = PFSS()
     return solver.ssa_from_svd_optimized(U, s, Vt, shape)
