@@ -37,6 +37,7 @@ from nsgt import CQ_NSGT
 import tqdm
 from functools import partial
 from scipy.ndimage import uniform_filter1d
+from typing import Dict, Optional
 
 
 "General Parameters"
@@ -59,6 +60,33 @@ result = None
 clusterCentroids = collections.OrderedDict({0:
                        np.ones(magnetometers) })
 hdbscan = HDBSCAN(min_samples = 4)
+
+analysis_enabled = False
+_analysis_store = {"coefficients": None, "mixing_matrix": None, "measurements": None, "subband_lengths": None}
+
+
+def reset_analysis() -> None:
+    """Clear cached analysis artifacts."""
+    global _analysis_store
+    _analysis_store = {key: None for key in _analysis_store}
+
+
+reset_analysis()
+
+
+def enable_analysis(mode: bool = True) -> None:
+    """Toggle capture of solver internals for analysis."""
+    global analysis_enabled
+    analysis_enabled = mode
+    if not mode:
+        reset_analysis()
+
+
+
+def get_analysis_results() -> Dict[str, Optional[np.ndarray]]:
+    """Return a shallow copy of the cached analysis data."""
+    return {key: None if value is None else np.array(value, copy=True) for key, value in _analysis_store.items()}
+
 
 def clean(B, triaxial = True):
     """
@@ -164,7 +192,8 @@ def weightedReconstruction(sig):
     
     "Define CVXPY parameters"
     A = cp.Parameter(shape=centroids.T.shape, value=centroids.T, complex=True)
-    print(np.round(A.value,2))
+    if analysis_enabled:
+        _analysis_store["mixing_matrix"] = np.array(centroids.T, copy=True)
     b = cp.Parameter(shape = magnetometers, complex=True)   
     
     "Pack constants together"
@@ -274,24 +303,33 @@ def demixNSGT(sig):
     "Create instance of NSGT and set NSGT parameters"
     length = sig.shape[-1]
     bins = bpo
-    fmax = fs/2
+    fmax = fs / 2
     lowf = 2 * bpo * fs / length
     nsgt = CQ_NSGT(lowf, fmax, bins, fs, length, multichannel=True)
-    
+
+    if analysis_enabled:
+        reset_analysis()
+
     "Apply the forward transform to the signal and convert to numpy array"
     B = nsgt.forward(sig)
     B = np.array(B, dtype=object)
-    
+
     "Get the shapes of each subband in each channel"
     shapes = np.array([i.shape[-1] for i in B[0]])
-    
+
     "Stack and concatenate the subbands from each channel into a matrix"
     B_nsgt = np.vstack([np.hstack(B[i]) for i in range(magnetometers)])
-    
+
+    if analysis_enabled:
+        _analysis_store["measurements"] = np.array(B_nsgt, copy=True)
+        _analysis_store["subband_lengths"] = np.array(shapes, copy=True)
+
     "Separate Signals"
     B_reconstructed = weightedReconstruction(B_nsgt)
 
-        
+    if analysis_enabled:
+        _analysis_store["coefficients"] = np.array(B_reconstructed, copy=True)
+
     "Split the matrix into subbands for each channel"
     S_nsgt = []
     for arr in B_reconstructed:
