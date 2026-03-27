@@ -1,0 +1,18 @@
+pandas
+numpy
+pytest
+scipy
+numba
+tqdm
+matplotlib
+toolz
+cvxpy
+scikit-learn
+tqdm
+magpylib
+keyboard
+seaborn
+wavelets @ git+https://github.com/aphoffmann/wavelets.git
+pymssa @ git+https://github.com/aphoffmann/pymssa.git
+nsgt @ git+https://github.com/aphoffmann/nsgt.git
+invertiblewavelets @ git+https://github.com/aphoffmann/invertiblewavelets.git
