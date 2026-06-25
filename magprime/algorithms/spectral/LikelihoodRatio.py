@@ -8,7 +8,7 @@
 # ║  Created      :  2025-05-21                                                  ║
 # ║  Last Updated :  2025-05-22                                                  ║
 # ║  Python       :  ≥ 3.10                                                      ║
-# ║  License      :  MIT — see LICENSE.txt                                       ║
+# ║  License      :  CC BY-NC 4.0 — see LICENSE.md                               ║
 # ║                                                                              ║
 # ║  Description  : Implementation of a likelihood ratio-based method of         ║
 # ║  spectral track detection. Methodology originally described in'An Image      ║

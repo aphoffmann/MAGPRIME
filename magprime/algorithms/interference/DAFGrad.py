@@ -10,7 +10,7 @@
 # ║  Created      :  2025-11-21                                                  ║
 # ║  Last Updated :  2025-11-22                                                  ║
 # ║  Python       :  ≥ 3.10                                                      ║
-# ║  License      :  MIT — see LICENSE.txt                                       ║
+# ║  License      :  CC BY-NC 4.0 — see LICENSE.md                               ║
 # ║                                                                              ║
 # ║  Description  : Todo                                                         ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝

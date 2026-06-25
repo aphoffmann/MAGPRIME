@@ -9,7 +9,7 @@
 # ║  Created      :  2025-05-21                                                  ║
 # ║  Last Updated :  2025-05-22                                                  ║
 # ║  Python       :  ≥ 3.10                                                      ║
-# ║  License      :  MIT — see LICENSE.txt                                       ║
+# ║  License      :  CC BY-NC 4.0 — see LICENSE.md                               ║
 # ║                                                                              ║
 # ║  Description  : Implementation of RUDE described in 'Generalized Time-Series ║
 # ║  Analysis for In Situ Spacecraft Observations: Anomaly Detection and Data    ║

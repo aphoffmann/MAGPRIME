@@ -10,7 +10,7 @@
 # ║  Created      :  2025-05-21                                                  ║
 # ║  Last Updated :  2025-07-19                                                  ║
 # ║  Python       :  ≥ 3.10                                                      ║
-# ║  License      :  MIT — see LICENSE.txt                                       ║
+# ║  License      :  CC BY-NC 4.0 — see LICENSE.md                               ║
 # ║                                                                              ║
 # ║  Description  : Principal Component Gradiometry for isolating common         ║
 # ║                 disturbances between sensors                                 ║
