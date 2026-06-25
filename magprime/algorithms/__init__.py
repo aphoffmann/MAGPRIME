@@ -1,29 +1,34 @@
 # magprime/algorithms/__init__.py
+#
+# Algorithms are exposed lazily and defensively: several of them depend on
+# heavy, optional third-party backends (e.g. pymssa, cvxpy, hdbscan, nsgt,
+# invertiblewavelets).  Importing magprime.algorithms should never hard-fail
+# just because one optional backend is not installed -- the algorithms whose
+# dependencies are unavailable are simply omitted from the namespace.
 
-# ---- Interference removers ----
-from .interference    import ICA
-from .interference   import MSSA
-from .interference   import NESS
-from .interference  import NESSA
-from .interference import NEUBAUER
-from .interference  import PiCoG
-from .interference  import RAMEN
-from .interference   import REAM
-from .interference import SHEINKER
-from .interference   import UBSS
-from .interference import WAICUP
-from .interference import WNEUBAUER
+import importlib as _importlib
 
+# (subpackage -> module names) for every shipped algorithm.
+_ALGORITHMS = {
+    "interference": [
+        "DAFGrad", "ICA", "MSSA", "NESS", "NEUBAUER", "PiCoG",
+        "RAMEN", "REAM", "SHEINKER", "UBSS", "WAICUP",
+    ],
+    "anomaly": ["RUDE", "RUDER"],
+    "spectral": ["AnomalyTracker", "LikelihoodRatio"],
+    "survey": ["PFSS"],
+}
 
-# ---- Anomaly detectors ----
-from .anomaly import RUDE
-from .anomaly import RUDER
+__all__ = []
 
-# ---- Geological Survey Methods ----
-from .survey import PFSS
+for _subpkg, _names in _ALGORITHMS.items():
+    for _name in _names:
+        try:
+            _module = _importlib.import_module(f".{_subpkg}.{_name}", __name__)
+        except ImportError:
+            # Optional dependency for this algorithm is not installed; skip it.
+            continue
+        globals()[_name] = _module
+        __all__.append(_name)
 
-__all__ = [
-    "ICA", "MSSA", "NESS", "NESSA", "NEUBAUER", "PiCoG",
-    "RAMEN", "REAM", "SHEINKER", "UBSS", "WAICUP", "WNEUBAUER",
-    "RUDE", "RUDER", "PFSS"
-]
+del _importlib, _subpkg, _names, _name
