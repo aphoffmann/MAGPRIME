@@ -26,7 +26,8 @@ ssp_similarity = 0.7
 magnitude_percentile = 51.0
 ambient_similarity = 0.9999
 min_cluster_size = 4
-n_keep = 2
+n_keep = 3
+verbose = False
 
 def clean(B, triaxial = True, sens=0):
     """
@@ -53,6 +54,8 @@ def clean(B, triaxial = True, sens=0):
 
     if(triaxial == False):
         raise Exception("'triaxial' is set to False. PiCoG only works for triaxial data")
+    if B.shape[0] != 2:
+        raise ValueError("DAFGrad currently expects exactly two sensors")
 
     # Take NSGT of B
     length = B.shape[-1]
@@ -75,7 +78,11 @@ def clean(B, triaxial = True, sens=0):
     mask = SSP_mask & MAG_mask & (~ambient_mask)
 
     SSP_data = Sf[:, :, mask]
-    print("Number of SSP bins:", SSP_data.shape[2])
+    if verbose:
+        print("Number of SSP bins:", SSP_data.shape[2])
+
+    if SSP_data.shape[2] == 0:
+        return np.copy(B[sens])
 
     # Estimate disturbance source parameters
     h1_dirs, h2_dirs, k_gain = cluster_gain_and_dir(SSP_data)
@@ -315,20 +322,14 @@ def cluster_gain_and_dir(SSP_data, min_cluster_size=None, n_keep=None):
 
     labels = HDBSCAN(min_cluster_size=min_cluster_size).fit_predict(X)
 
-    # Keep largest n_keep non-noise clusters
+    # Keep clusters with consistent sensor directions, then choose directions
+    # that add independent skew-frame axes.
     unique = [lab for lab in np.unique(labels) if lab >= 0]
     if not unique:
         raise ValueError("HDBSCAN found no clusters.")
 
-    sizes = [(lab, np.sum(labels == lab)) for lab in unique]
-    sizes.sort(key=lambda x: x[1], reverse=True)
-    keep = [lab for lab, _ in sizes[:n_keep]]
-
-    h1_dirs = []
-    h2_dirs = []
-    k_gain = []
-
-    for lab in keep:
+    candidates = []
+    for lab in unique:
         idx = labels == lab
         if np.sum(idx) == 0:
             continue
@@ -342,9 +343,53 @@ def cluster_gain_and_dir(SSP_data, min_cluster_size=None, n_keep=None):
             h1_mean = -h1_mean
             h2_mean = -h2_mean
 
-        h1_dirs.append(h1_mean)
-        h2_dirs.append(h2_mean)
-        k_gain.append(g_med)
+        candidates.append({
+            'h1': h1_mean,
+            'h2': h2_mean,
+            'gain': g_med,
+            'size': int(np.sum(idx)),
+            'dir_err': np.linalg.norm(h1_mean - h2_mean),
+        })
+
+    if not candidates:
+        raise ValueError("HDBSCAN found no usable clusters.")
+
+    h1_dirs = []
+    h2_dirs = []
+    k_gain = []
+
+    for _ in range(min(n_keep, 3, len(candidates))):
+        best_idx = None
+        best_score = -np.inf
+        basis = np.asarray(h1_dirs)
+
+        for i, cand in enumerate(candidates):
+            v = cand['h1']
+            if basis.size:
+                coeff, *_ = np.linalg.lstsq(basis.T, v, rcond=None)
+                residual = v - basis.T @ coeff
+                independence = np.linalg.norm(residual)
+            else:
+                independence = 1.0
+
+            if independence < 0.15:
+                continue
+
+            score = cand['size'] * independence / (1.0 + 50.0 * cand['dir_err'])
+            if score > best_score:
+                best_score = score
+                best_idx = i
+
+        if best_idx is None:
+            break
+
+        cand = candidates.pop(best_idx)
+        h1_dirs.append(cand['h1'])
+        h2_dirs.append(cand['h2'])
+        k_gain.append(cand['gain'])
+
+    if not h1_dirs:
+        raise ValueError("No independent DAFGrad directions selected.")
 
     return np.vstack(h1_dirs), np.vstack(h2_dirs), np.asarray(k_gain)
 

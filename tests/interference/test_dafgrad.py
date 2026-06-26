@@ -1,8 +1,7 @@
-"""DAFGrad: direction-and-frequency gradiometry (smoke test).
+"""DAFGrad: direction-and-frequency gradiometry.
 
 DAFGrad depends on optional backends (nsgt, sklearn's HDBSCAN); skip if they
-are unavailable.  This is a smoke test: it checks the method runs end-to-end
-and returns a finite ambient estimate of the right length.
+are unavailable.
 """
 
 import numpy as np
@@ -20,7 +19,11 @@ def test_dafgrad_runs(scenario, metrics, report):
     assert rec.shape[-1] == sc.ambient.shape[-1]
     assert np.isfinite(rec).all()
     if rec.shape == sc.ambient.shape:
+        err_raw = metrics.rmse(sc.noisy, sc.ambient)
+        err_clean = metrics.rmse(rec, sc.ambient)
         report(
-            rmse_raw=metrics.rmse(sc.noisy, sc.ambient),
-            rmse_clean=metrics.rmse(rec, sc.ambient),
+            rmse_raw=err_raw,
+            rmse_clean=err_clean,
+            reduction=err_raw / err_clean,
         )
+        assert err_clean < 0.1 * err_raw
